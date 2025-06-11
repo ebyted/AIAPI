@@ -15,7 +15,7 @@
     button:hover { background: #357ab8; }
     .output { margin-top: 1rem; }
     pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; white-space: pre-wrap; }
-    ul { padding-left: 1.2rem; }
+    ul { padding-left: 1.2rem; list-style-type: disc; }
     audio { width: 100%; }
   </style>
 </head>
@@ -28,7 +28,7 @@
       <label for="username">Username</label>
       <input type="text" id="username" placeholder="alice" value="alice">
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="your password" value="">
+      <input type="password" id="password" placeholder="your password">
       <button id="login-btn">Log In</button>
       <p id="login-status"></p>
     </div>
@@ -49,59 +49,53 @@
   </div>
 
   <script>
-    // Polyfill caches API to avoid extension errors
-    if (typeof caches === 'undefined') {
-      window.caches = {
-        open: () => Promise.resolve({}),
-        match: () => Promise.resolve(undefined),
-        put: () => Promise.resolve(),
-        delete: () => Promise.resolve(false),
-        keys: () => Promise.resolve([])
-      };
-    }
-    let token = '';
-    document.getElementById('login-btn').addEventListener('click', async () => {
-      const user = document.getElementById('username').value;
-      const pass = document.getElementById('password').value;
-      const res = await fetch('/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ username: user, password: pass })
-      });
-      if (!res.ok) {
-        document.getElementById('login-status').textContent = 'Login failed';
-        return;
-      }
-      const data = await res.json();
-      token = data.access_token;
-      document.getElementById('login-status').textContent = 'Logged in successfully';
-      document.getElementById('login-section').style.display = 'none';
-      document.getElementById('chat-section').style.display = 'block';
-    });
+    document.addEventListener('DOMContentLoaded', () => {
+      let token = '';
 
-    document.getElementById('send-btn').addEventListener('click', async () => {
-      const prompt = document.getElementById('prompt').value;
-      const mode = document.getElementById('mode').value;
-      const output = document.getElementById('response-output');
-      output.innerHTML = '<em>Loading...</em>';
-      const res = await fetch('/v1/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ prompt, mode })
+      document.getElementById('login-btn').addEventListener('click', async () => {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        const res = await fetch('/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ username: user, password: pass })
+        });
+        if (!res.ok) {
+          document.getElementById('login-status').textContent = 'Login failed';
+          return;
+        }
+        const data = await res.json();
+        token = data.access_token;
+        document.getElementById('login-status').textContent = 'Logged in successfully';
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('chat-section').style.display = 'block';
       });
-      if (!res.ok) {
-        output.innerHTML = `<strong>Error ${res.status}</strong>`;
-        return;
-      }
-      const data = await res.json();
-      if (mode === 'text') {
-        output.innerHTML = `<pre>${data.text}</pre>`;
-      } else if (mode === 'audio') {
-        output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
-      } else if (mode === 'links') {
-        const list = data.links.map(url => `<li><a href="${url}" target="_blank">${url}</a></li>`).join('');
-        output.innerHTML = `<ul>${list}</ul>`;
-      }
+
+      document.getElementById('send-btn').addEventListener('click', async () => {
+        const prompt = document.getElementById('prompt').value;
+        const mode = document.getElementById('mode').value;
+        const output = document.getElementById('response-output');
+        output.innerHTML = '<em>Loading...</em>';
+        const res = await fetch('/v1/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ prompt, mode })
+        });
+        if (!res.ok) {
+          output.innerHTML = `<strong>Error ${res.status}</strong>`;
+          return;
+        }
+        const data = await res.json();
+        if (mode === 'text') {
+          output.innerHTML = `<pre>${data.text}</pre>`;
+        } else if (mode === 'audio') {
+          output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
+        } else if (mode === 'links') {
+          // Automatically open each link
+          data.links.forEach(url => window.open(url, '_blank'));
+          output.innerHTML = '<p>Links opened in new tabs.</p>';
+        }
+      });
     });
   </script>
 </body>
