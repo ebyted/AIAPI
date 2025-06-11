@@ -8,3 +8,5 @@ python-jose[cryptography]>=3.3.0
 httpx>=0.24.0
 sqlalchemy>=1.4
 passlib[bcrypt]>=1.7.4
+python-multipart
+
