@@ -91,12 +91,36 @@
         } else if (mode === 'audio') {
           output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
         } else if (mode === 'links') {
-          // Automatically open each link
-          data.links.forEach(url => window.open(url, '_blank'));
-          output.innerHTML = '<p>Links opened in new tabs.</p>';
-        }
-      });
-    });
+          // Render checkboxes for each link
+          const container = document.createElement('div');
+          data.links.forEach((url, idx) => {
+            const id = `link_${idx}`;
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = id;
+            checkbox.value = url;
+            label.appendChild(checkbox);
+            const text = document.createTextNode(' ' + url);
+            label.appendChild(text);
+            container.appendChild(label);
+          });
+          const openBtn = document.createElement('button');
+          openBtn.textContent = 'Open Selected Links';
+          openBtn.style.marginTop = '0.5rem';
+          openBtn.addEventListener('click', () => {
+            data.links.forEach((url, idx) => {
+              const cb = document.getElementById(`link_${idx}`);
+              if (cb.checked) window.open(url, '_blank');
+            });
+          });
+          container.appendChild(openBtn);
+          output.innerHTML = '';
+          output.appendChild(container);
+        } // end links branch
+      }); // end send-btn listener
+    }); // end DOMContentLoaded listener
   </script>
 </body>
 </html>
