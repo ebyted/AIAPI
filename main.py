@@ -148,8 +148,7 @@ async def generate(
         )
         return {"audio_base64": audio_resp.audio}
     elif req.mode == "links":
-        
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=MILO_MODEL_ID,
             messages=[
                 {"role": "system", "content": "Devuelve hasta 5 enlaces https válidos relacionados con el siguiente tema."},
