@@ -15,7 +15,7 @@
     button:hover { background: #357ab8; }
     .output { margin-top: 1rem; }
     pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; white-space: pre-wrap; }
-    ul { padding-left: 1.2rem; }
+    ul { padding-left: 1.2rem; list-style-type: disc; }
     audio { width: 100%; }
   </style>
 </head>
@@ -54,11 +54,14 @@
       window.caches = {
         open: () => Promise.resolve({}),
         match: () => Promise.resolve(undefined),
+        get: () => Promise.resolve(undefined),
+        set: () => Promise.resolve(),
         put: () => Promise.resolve(),
         delete: () => Promise.resolve(false),
         keys: () => Promise.resolve([])
       };
     }
+
     let token = '';
     document.getElementById('login-btn').addEventListener('click', async () => {
       const user = document.getElementById('username').value;
@@ -99,10 +102,23 @@
       } else if (mode === 'audio') {
         output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
       } else if (mode === 'links') {
-        const list = data.links.map(url => `<li><a href="${url}" target="_blank">${url}</a></li>`).join('');
-        output.innerHTML = `<ul>${list}</ul>`;
+        const listItems = data.links.map(url => `<li><a href="${url}" target="_blank">${url}</a></li>`).join('');
+        output.innerHTML = `<ul>${listItems}</ul>`;
       }
     });
   </script>
 </body>
 </html>
+<script>
+  // Ensure the caches API is available
+  if (typeof caches === 'undefined') {
+    window.caches = {
+      open: () => Promise.resolve({}),
+      match: () => Promise.resolve(undefined),
+      get: () => Promise.resolve(undefined),
+      set: () => Promise.resolve(),
+      put: () => Promise.resolve(),
+      delete: () => Promise.resolve(false),
+      keys: () => Promise.resolve([])
+    };
+  }
