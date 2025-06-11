@@ -15,8 +15,8 @@
     button:hover { background: #357ab8; }
     .output { margin-top: 1rem; }
     pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; white-space: pre-wrap; }
-    ul { padding-left: 1.2rem; list-style-type: disc; }
-    audio { width: 100%; }
+    ul, ol { padding-left: 1.2rem; }
+    audio { width: 100%; margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -39,18 +39,45 @@
       <select id="mode">
         <option value="text">Text</option>
         <option value="audio">Audio</option>
-        <option value="links">Links</option>
+        <option value="links">Playlist</option>
       </select>
       <label for="prompt">Prompt</label>
       <textarea id="prompt" rows="3" placeholder="Write your question..."></textarea>
       <button id="send-btn">Send</button>
       <div id="response-output" class="output"></div>
     </div>
+
+    <!-- Audio player and playlist elements -->
+    <div class="section" id="playlist-section" style="display:none;">
+      <h2>Playlist</h2>
+      <audio id="audio-player" controls></audio>
+      <ol id="playlist"></ol>
+    </div>
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       let token = '';
+      const loginSection = document.getElementById('login-section');
+      const chatSection = document.getElementById('chat-section');
+      const playlistSection = document.getElementById('playlist-section');
+      const output = document.getElementById('response-output');
+      const player = document.getElementById('audio-player');
+      const playlistEl = document.getElementById('playlist');
+      let tracks = [];
+      let currentIndex = 0;
+
+      const playTrack = index => {
+        if (index < 0 || index >= tracks.length) return;
+        currentIndex = index;
+        player.src = tracks[currentIndex];
+        player.play();
+        Array.from(playlistEl.children).forEach((li, i) => {
+          li.style.fontWeight = i === currentIndex ? 'bold' : 'normal';
+        });
+      };
+
+      player.addEventListener('ended', () => playTrack(currentIndex + 1));
 
       document.getElementById('login-btn').addEventListener('click', async () => {
         const user = document.getElementById('username').value;
@@ -60,67 +87,47 @@
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ username: user, password: pass })
         });
-        if (!res.ok) {
-          document.getElementById('login-status').textContent = 'Login failed';
-          return;
-        }
+        if (!res.ok) { document.getElementById('login-status').textContent = 'Login failed'; return; }
         const data = await res.json();
         token = data.access_token;
-        document.getElementById('login-status').textContent = 'Logged in successfully';
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('chat-section').style.display = 'block';
+        loginSection.style.display = 'none';
+        chatSection.style.display = 'block';
       });
 
       document.getElementById('send-btn').addEventListener('click', async () => {
         const prompt = document.getElementById('prompt').value;
         const mode = document.getElementById('mode').value;
-        const output = document.getElementById('response-output');
         output.innerHTML = '<em>Loading...</em>';
+
         const res = await fetch('/v1/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ prompt, mode })
+          body: JSON.stringify({ prompt, mode: mode === 'links' ? 'links' : mode })
         });
-        if (!res.ok) {
-          output.innerHTML = `<strong>Error ${res.status}</strong>`;
-          return;
-        }
+        if (!res.ok) { output.innerHTML = `<strong>Error ${res.status}</strong>`; return; }
         const data = await res.json();
+
         if (mode === 'text') {
           output.innerHTML = `<pre>${data.text}</pre>`;
         } else if (mode === 'audio') {
           output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
         } else if (mode === 'links') {
-          // Render checkboxes for each link
-          const container = document.createElement('div');
-          data.links.forEach((url, idx) => {
-            const id = `link_${idx}`;
-            const label = document.createElement('label');
-            label.style.display = 'block';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = id;
-            checkbox.value = url;
-            label.appendChild(checkbox);
-            const text = document.createTextNode(' ' + url);
-            label.appendChild(text);
-            container.appendChild(label);
+          // Setup playlist
+          tracks = data.links;
+          playlistEl.innerHTML = '';
+          tracks.forEach((url, idx) => {
+            const li = document.createElement('li');
+            li.textContent = url;
+            li.style.cursor = 'pointer';
+            li.addEventListener('click', () => playTrack(idx));
+            playlistEl.appendChild(li);
           });
-          const openBtn = document.createElement('button');
-          openBtn.textContent = 'Open Selected Links';
-          openBtn.style.marginTop = '0.5rem';
-          openBtn.addEventListener('click', () => {
-            data.links.forEach((url, idx) => {
-              const cb = document.getElementById(`link_${idx}`);
-              if (cb.checked) window.open(url, '_blank');
-            });
-          });
-          container.appendChild(openBtn);
-          output.innerHTML = '';
-          output.appendChild(container);
-        } // end links branch
-      }); // end send-btn listener
-    }); // end DOMContentLoaded listener
+          chatSection.style.display = 'none';
+          playlistSection.style.display = 'block';
+          playTrack(0);
+        }
+      });
+    });
   </script>
 </body>
 </html>
