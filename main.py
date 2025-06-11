@@ -136,10 +136,10 @@ async def generate(
     logger.info(f"User {current_user.username} requested mode={req.mode}")
     if req.mode == "text":
         response = client.chat.completions.create(
-            model=MILO_MODEL_ID,
+            model=os.getenv("MILO_MODEL_ID", "gpt-3.5-turbo"),
             messages=[{"role": "user", "content": req.prompt}],
             temperature=0.7,
-            max_tokens=250
+            max_tokens=250,
         )
         return {"text": response.choices[0].message.content.strip()}
     elif req.mode == "audio":
@@ -148,6 +148,7 @@ async def generate(
         )
         return {"audio_base64": audio_resp.audio}
     elif req.mode == "links":
+        
         response = openai.ChatCompletion.create(
             model=MILO_MODEL_ID,
             messages=[
