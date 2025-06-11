@@ -26,9 +26,9 @@
     <div class="section" id="login-section">
       <h2>Login</h2>
       <label for="username">Username</label>
-      <input type="text" id="username" placeholder="alice" value="ebyted">
+      <input type="text" id="username" placeholder="alice" value="alice">
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="your password" value="arkano">
+      <input type="password" id="password" placeholder="your password" value="">
       <button id="login-btn">Log In</button>
       <p id="login-status"></p>
     </div>
@@ -49,13 +49,21 @@
   </div>
 
   <script>
-    const API_BASE = '';
+    // Polyfill caches API to avoid extension errors
+    if (typeof caches === 'undefined') {
+      window.caches = {
+        open: () => Promise.resolve({}),
+        match: () => Promise.resolve(undefined),
+        put: () => Promise.resolve(),
+        delete: () => Promise.resolve(false),
+        keys: () => Promise.resolve([])
+      };
+    }
     let token = '';
-
     document.getElementById('login-btn').addEventListener('click', async () => {
       const user = document.getElementById('username').value;
       const pass = document.getElementById('password').value;
-      const res = await fetch(`${API_BASE}/token`, {
+      const res = await fetch('/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ username: user, password: pass })
@@ -76,7 +84,7 @@
       const mode = document.getElementById('mode').value;
       const output = document.getElementById('response-output');
       output.innerHTML = '<em>Loading...</em>';
-      const res = await fetch(`${API_BASE}/v1/generate`, {
+      const res = await fetch('/v1/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ prompt, mode })

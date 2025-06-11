@@ -163,7 +163,7 @@ async def generate(
 # Run with: python main.py
 if __name__ == "__main__":
     import uvicorn
-    host = os.getenv("HOST", "127.0.0.1")
-    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "168.231.67.221")
+    port = int(os.getenv("PORT", 8011))
     print(f"🚀 Starting Milo API at http://{host}:{port}")
     uvicorn.run("main:app", host=host, port=port, log_level="info")
