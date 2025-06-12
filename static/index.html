@@ -10,8 +10,20 @@
     h1, h2 { text-align: center; }
     .section { margin-bottom: 1.5rem; }
     label { display: block; margin-bottom: 0.3rem; font-weight: bold; }
-    input, textarea, select, button { width: 100%; padding: 0.5rem; margin-bottom: 0.8rem; border: 1px solid #ccc; border-radius: 4px; }
-    button { cursor: pointer; background: #4a90e2; color: #fff; border: none; }
+    input, textarea, select { width: 100%; margin-bottom: 1rem; }  /* <-- agrega espacio debajo de cada input */
+    button {
+      width: auto;
+      min-width: 120px;
+      display: inline-block;
+      margin-right: 0.5rem;
+      margin-bottom: 1rem; /* <-- más espacio debajo de los botones */
+      cursor: pointer;
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
     button:hover { background: #357ab8; }
     .output { margin-top: 1rem; }
     pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; white-space: pre-wrap; }
@@ -43,7 +55,8 @@
       </select>
       <label for="prompt">Prompt</label>
       <textarea id="prompt" rows="3" placeholder="Write your question..."></textarea>
-      <button id="send-btn">Send</button>
+      <button id="send-btn" type="button">Send</button>
+      <button id="prompt-param-btn" type="button" style="background:#f39c12; margin-left:0.5rem;">Prompt como parámetro</button>
       <div id="response-output" class="output"></div>
     </div>
 
@@ -55,31 +68,32 @@
     </div>
   </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      let token = '';
-      const loginSection = document.getElementById('login-section');
-      const chatSection = document.getElementById('chat-section');
-      const playlistSection = document.getElementById('playlist-section');
-      const output = document.getElementById('response-output');
-      const player = document.getElementById('audio-player');
-      const playlistEl = document.getElementById('playlist');
-      let tracks = [];
-      let currentIndex = 0;
+ <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    let token = '';
+    const loginSection = document.getElementById('login-section');
+    const chatSection = document.getElementById('chat-section');
+    const playlistSection = document.getElementById('playlist-section');
+    const output = document.getElementById('response-output');
+    const player = document.getElementById('audio-player');
+    const playlistEl = document.getElementById('playlist');
+    let tracks = [];
+    let currentIndex = 0;
 
-      const playTrack = index => {
-        if (index < 0 || index >= tracks.length) return;
-        currentIndex = index;
-        player.src = tracks[currentIndex];
-        player.play();
-        Array.from(playlistEl.children).forEach((li, i) => {
-          li.style.fontWeight = i === currentIndex ? 'bold' : 'normal';
-        });
-      };
+    const playTrack = i => {
+      if (i < 0 || i >= tracks.length) return;
+      currentIndex = i;
+      player.src = tracks[i];
+      player.play();
+      Array.from(playlistEl.children).forEach((li, j) => {
+        li.style.fontWeight = j === i ? 'bold' : 'normal';
+      });
+    };
+    player.addEventListener('ended', () => playTrack(currentIndex + 1));
 
-      player.addEventListener('ended', () => playTrack(currentIndex + 1));
-
-      document.getElementById('login-btn').addEventListener('click', async () => {
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      document.getElementById('login-status').textContent = 'Logging in...';
+      try {
         const user = document.getElementById('username').value;
         const pass = document.getElementById('password').value;
         const res = await fetch('/token', {
@@ -87,47 +101,88 @@
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ username: user, password: pass })
         });
-        if (!res.ok) { document.getElementById('login-status').textContent = 'Login failed'; return; }
+        if (!res.ok) throw new Error(`Status ${res.status}`);
         const data = await res.json();
         token = data.access_token;
+        document.getElementById('login-status').textContent = '✅ Logged in successfully';
         loginSection.style.display = 'none';
         chatSection.style.display = 'block';
-      });
+      } catch (err) {
+        document.getElementById('login-status').textContent = '❌ Login failed';
+        console.error('Login error', err);
+      }
+    });
 
-      document.getElementById('send-btn').addEventListener('click', async () => {
-        const prompt = document.getElementById('prompt').value;
-        const mode = document.getElementById('mode').value;
-        output.innerHTML = '<em>Loading...</em>';
+    document.getElementById('send-btn').addEventListener('click', async () => {
+      const prompt = document.getElementById('prompt').value;
+      const mode = document.getElementById('mode').value;
+      output.innerHTML = '<em>Loading...</em>';
 
+      if (mode === 'links') {
+        const res2 = await fetch('/v1/playlist', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res2.ok) {
+          output.innerHTML = `<strong>Error ${res2.status} fetching playlist</strong>`;
+          return;
+        }
+        const json = await res2.json();
+        tracks = json.tracks;
+        playlistEl.innerHTML = '';
+        tracks.forEach((url, idx) => {
+          const li = document.createElement('li');
+          li.textContent = url;
+          li.style.cursor = 'pointer';
+          li.addEventListener('click', () => playTrack(idx));
+          playlistEl.appendChild(li);
+        });
+        document.getElementById('chat-section').style.display = 'none';
+        document.getElementById('playlist-section').style.display = 'block';
+        playTrack(0);
+      } else {
+        try {
+          const res = await fetch('/v1/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ prompt, mode })
+          });
+          if (!res.ok) throw new Error(`Status ${res.status}`);
+          const data = await res.json();
+          if (mode === 'text') {
+            output.innerHTML = `<pre>${data.text}</pre>`;
+          } else if (mode === 'audio') {
+            output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
+          }
+        } catch (err) {
+          output.innerHTML = `<strong>❌ Request failed</strong>`;
+          console.error('Generate error', err);
+        }
+      }
+    });
+
+    // Nuevo botón: Prompt como parámetro
+    document.getElementById('prompt-param-btn').addEventListener('click', async () => {
+      const mode = document.getElementById('mode').value;
+      output.innerHTML = '<em>Loading...</em>';
+      const prompt = "actua como especialista en IA y responde a cuantos años luz está la estrella mas lejana conocida";
+      try {
         const res = await fetch('/v1/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ prompt, mode: mode === 'links' ? 'links' : mode })
+          body: JSON.stringify({ prompt, mode })
         });
-        if (!res.ok) { output.innerHTML = `<strong>Error ${res.status}</strong>`; return; }
+        if (!res.ok) throw new Error(`Status ${res.status}`);
         const data = await res.json();
-
         if (mode === 'text') {
           output.innerHTML = `<pre>${data.text}</pre>`;
         } else if (mode === 'audio') {
           output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
-        } else if (mode === 'links') {
-          // Setup playlist
-          tracks = data.links;
-          playlistEl.innerHTML = '';
-          tracks.forEach((url, idx) => {
-            const li = document.createElement('li');
-            li.textContent = url;
-            li.style.cursor = 'pointer';
-            li.addEventListener('click', () => playTrack(idx));
-            playlistEl.appendChild(li);
-          });
-          chatSection.style.display = 'none';
-          playlistSection.style.display = 'block';
-          playTrack(0);
         }
-      });
+      } catch (err) {
+        output.innerHTML = `<strong>❌ Request failed</strong>`;
+        console.error('Generate error', err);
+      }
     });
-  </script>
-</body>
-</html>
+
+  });
+</script>
