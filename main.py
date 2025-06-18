@@ -23,6 +23,15 @@ import models
 import crud
 from database import SessionLocal, engine
 
+# main.py (al final del archivo)
+# from admin import init_admin, admin_app  # Removed due to missing module
+from fastapi import FastAPI
+import os
+
+# from fastapi_admin.providers.login import UsernamePasswordProvider
+# tus modelos de admin, ej:
+from models import AdminUser
+
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -31,7 +40,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 # Create database tables
-models.Base.metadata.create_all(bind=engine)
+# models.Base.metadata.create_all(bind=engine)  # Elimina o comenta esta línea
 
 # Load config
 MILO_MODEL_ID = os.getenv("MILO_MODEL_ID", "gpt-3.5-turbo")
@@ -50,6 +59,20 @@ Instrumentator().instrument(app).expose(app)
 
 # Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Initialize admin interface using lifespan event handler
+from contextlib import asynccontextmanager
+
+# Removed admin initialization due to missing admin module
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Inicializa FastAPI-Admin
+#     await init_admin()
+#     # Monta FastAPI-Admin en /admin
+#     app.mount("/admin", admin_app)
+#     yield
+
+# app.router.lifespan_context = lifespan
 
 # Serve index.html
 @app.get("/", include_in_schema=False)
