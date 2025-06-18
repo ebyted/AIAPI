@@ -1,5 +1,7 @@
 import os
 import logging
+from prompts import get_prompt_by_mode
+
 from datetime import datetime, timedelta
 from typing import Optional, Generator
 
@@ -11,6 +13,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -53,6 +56,17 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 # Setup FastAPI
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Milo API", version="1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8007",
+        "http://168.231.67.221:8007"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 Instrumentator().instrument(app).expose(app)
@@ -152,12 +166,28 @@ async def generate(
     request: Request,
     req: GenerateRequest,
     current_user: models.User = Depends(get_current_user),
-    promptstr: Optional[str] = None  # Nuevo parámetro opcional
+    promptstr: Optional[str] = None
 ):
     logger.info(f"User {current_user.username} requested mode={req.mode}")
-    # Usa promptstr si se proporciona, si no, usa req.prompt
     prompt_to_use = promptstr if promptstr is not None else req.prompt
 
+    # Si el modo está en PROMPTS, usa get_prompt_by_mode
+    from prompts import PROMPTS  # Importa el diccionario para verificar los modos válidos
+    if req.mode in PROMPTS:
+        user_vars = {
+            "full_name": current_user.full_name,
+            "username": current_user.username
+        }
+        prompt_text = get_prompt_by_mode(req.mode, user_vars, prompt_to_use)
+        resp = client.chat.completions.create(
+            model=MILO_MODEL_ID,
+            messages=[{"role": "user", "content": prompt_text}],
+            temperature=0.7,
+            max_tokens=250
+        )
+        return {"text": resp.choices[0].message.content.strip()}
+
+    # Otros modos especiales
     if req.mode == "text":
         resp = client.chat.completions.create(
             model=MILO_MODEL_ID,
@@ -170,7 +200,6 @@ async def generate(
         audio_resp = client.audio.speech.create(model="tts-1", input=prompt_to_use, voice="alloy", format="mp3")
         return {"audio_base64": audio_resp.audio}
     elif req.mode == "Playlist":
-        # Return 5 YouTube links from lista.txt
         tracks = []
         with open("lista.txt", "r", encoding="utf-8") as f:
             for i, line in enumerate(f):
@@ -180,6 +209,14 @@ async def generate(
         return {"tracks": tracks}
     else:
         raise HTTPException(status_code=400, detail="Invalid mode")
+
+# Ejemplo de uso:
+if __name__ == "__main__":
+    modo = "dialogo_sagrado"
+    user_vars = {"nombre": "Juan"}
+    extra = "Quiero sentirme en paz."
+    prompt = get_prompt_by_mode(modo, user_vars, extra)
+    print(prompt)
 
 if __name__ == "__main__":
     import uvicorn
