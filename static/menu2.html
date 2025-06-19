@@ -4,19 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BeCalm</title>
-  <link rel="stylesheet" href="/static/css/styles.css" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f9f9f9; }
+    .overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.07); z-index: 0; }
+    .container { max-width: 700px; margin: 2rem auto; background: #fff; padding: 2rem 1.5rem 2.5rem 1.5rem; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); position: relative; z-index: 1; }
+    .title { text-align: center; font-size: 2.5rem; margin-bottom: 2rem; }
+    .menu { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1.5rem; }
+    .menu-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #222; background: #f4f8fb; border-radius: 12px; padding: 1.2rem 1.2rem 0.7rem 1.2rem; width: 30%; min-width: 120px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); transition: background 0.2s, box-shadow 0.2s; }
+    .menu-item:hover { background: #e0eefa; box-shadow: 0 2px 8px rgba(0,0,0,0.08);}
+    .icon { width: 56px; height: 56px; margin-bottom: 0.7rem; }
+    .menu-item span { font-size: 1.1rem; font-weight: 500; }
+    @media (max-width: 700px) {
+      .container { max-width: 98vw; padding: 1rem 0.2rem; }
+      .menu { gap: 0.7rem; }
+      .menu-item { width: 45%; min-width: 90px; padding: 0.7rem 0.2rem 0.5rem 0.2rem; }
+      .icon { width: 40px; height: 40px; }
+    }
+  </style>
 </head>
 <body>
   <audio id="background-music" autoplay loop hidden>
     <source src="/static/audio/birds-nature.mp3" type="audio/mpeg">
     Tu navegador no soporta audio HTML5.
   </audio>
-
   <div class="overlay"></div>
-
   <div class="container">
     <h1 class="title">BeCalm</h1>
-
     <nav class="menu">
       <a href="#" class="menu-item">
         <img src="/static/images/icon-dialogo.png" alt="Icono Diálogo Sagrado" class="icon" />
@@ -48,11 +61,9 @@
       </a>
     </nav>
   </div>
-
   <script>
     const items = document.querySelectorAll('.menu-item');
     const resetItem = document.getElementById('reset-active');
-
     // Restaurar el botón activo desde localStorage
     window.addEventListener('DOMContentLoaded', () => {
       const savedIndex = localStorage.getItem('activeMenuItem');
@@ -60,7 +71,6 @@
         items[savedIndex].classList.add('active');
       }
     });
-
     // Guardar selección al hacer clic, excepto en reset
     items.forEach((item, index) => {
       if (item.id !== 'reset-active') {
@@ -71,7 +81,6 @@
         });
       }
     });
-
     // Borrar selección al hacer clic en reset
     if (resetItem) {
       resetItem.addEventListener('click', (e) => {
@@ -81,6 +90,5 @@
       });
     }
   </script>
-
 </body>
 </html>
