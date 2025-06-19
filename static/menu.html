@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BeCalm</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 1; }
+    .title { position: relative; z-index: 2; color: #fff; font-size: 2.5rem; margin: 2rem 0; text-align: center; }
+    .menu { display: flex; flex-direction: column; align-items: center; z-index: 2; }
+    .menu-item { background: #4a90e2; color: #fff; padding: 1rem; margin: 0.5rem 0; width: 80%; text-align: center; border-radius: 4px; text-decoration: none; position: relative; }
+    .menu-item:hover { background: #357ab8; }
+    .icon { width: 24px; height: 24px; margin-right: 0.5rem; vertical-align: middle; }
+  </style>
+</head>
+<body>
+  <audio id="background-music" autoplay loop hidden>
+    <source src="/static/audio/birds-nature.mp3" type="audio/mpeg">
+    Tu navegador no soporta audio HTML5.
+  </audio>
+  <div class="overlay"></div>
+  <div class="container">
+    <h1 class="title">BeCalm</h1>
+    <nav class="menu">
+      <a href="#" class="menu-item"><img src="/static/images/icon-dialogo.png" alt="Icono Diálogo Sagrado" class="icon" /><span>Diálogo Sagrado</span></a>
+      <a href="#" class="menu-item"><img src="/static/images/icon-diario.png" alt="Icono Diario Vivo" class="icon" /><span>Diario Vivo</span></a>
+      <a href="#" class="menu-item"><img src="/static/images/icon-medita.png" alt="Icono Medita Conmigo" class="icon" /><span>Medita Conmigo</span></a>
+      <a href="#" class="menu-item"><img src="/static/images/icon-mensajes.png" alt="Icono Mensajes del Alma" class="icon" /><span>Mensajes del Alma</span></a>
+      <a href="#" class="menu-item"><img src="/static/images/icon-ritual.png" alt="Icono Ritual Diario" class="icon" /><span>Ritual Diario</span></a>
+      <a href="#" class="menu-item"><img src="/static/images/icon-mapa.png" alt="Icono Mapa Interior" class="icon" /><span>Mapa Interior</span></a>
+      <a href="#" class="menu-item"><img src="/static/images/icon-silencio.png" alt="Icono Silencio Sagrado" class="icon" /><span>Silencio Sagrado</span></a>
+    </nav>
+  </div>
+  <script>
+    const items = document.querySelectorAll('.menu-item');
+    const resetItem = document.getElementById('reset-active');
+    // Restaurar el botón activo desde localStorage
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedIndex = localStorage.getItem('activeMenuItem');
+      if (savedIndex !== null && items[savedIndex]) {
+        items[savedIndex].classList.add('active');
+      }
+    });
+    // Guardar selección al hacer clic, excepto en reset
+    items.forEach((item, index) => {
+      if (item.id !== 'reset-active') {
+        item.addEventListener('click', () => {
+          items.forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          localStorage.setItem('activeMenuItem', index);
+        });
+      }
+    });
+    // Borrar selección al hacer clic en reset
+    if (resetItem) {
+      resetItem.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('activeMenuItem');
+        items.forEach(i => i.classList.remove('active'));
+      });
+    }
+  </script>
+</body>
+</html>

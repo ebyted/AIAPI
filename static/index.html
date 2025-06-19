@@ -106,7 +106,10 @@
         token = data.access_token;
         document.getElementById('login-status').textContent = '✅ Logged in successfully';
         loginSection.style.display = 'none';
-        chatSection.style.display = 'block';
+        // Redirigir a menu.html tras login exitoso
+        window.location.href = 'menu.html';
+        // Si quieres ocultar el chat y no redirigir, comenta la línea de arriba y descomenta la de abajo
+        // chatSection.style.display = 'block';
       } catch (err) {
         document.getElementById('login-status').textContent = '❌ Login failed';
         console.error('Login error', err);
