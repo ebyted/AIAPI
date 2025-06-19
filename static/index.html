@@ -104,6 +104,8 @@
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const data = await res.json();
         token = data.access_token;
+        // Después de recibir el token del backend:
+        localStorage.setItem('token', data.access_token);
         document.getElementById('login-status').textContent = '✅ Logged in successfully';
         loginSection.style.display = 'none';
         // Redirigir a menu.html tras login exitoso

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diálogo Sagrado</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <style>
+    body {
+      background: url('/static/images/desert.jpg') no-repeat center center fixed;
+      background-size: cover;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .container {
+      background: rgba(255,255,255,0.92);
+      max-width: 600px;
+      margin: 3rem auto 0 auto;
+      border-radius: 16px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+      padding: 2.5rem 2rem 2rem 2rem;
+      text-align: center;
+    }
+    h1 { font-size: 2.5rem; margin-bottom: 0.2em; }
+    p { margin-top: 0; margin-bottom: 2.2em; font-size: 1.15rem; }
+    .chat-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.7rem;
+      margin-bottom: 1.2rem;
+    }
+    .chat-form label {
+      font-weight: bold;
+      margin-bottom: 0.2rem;
+    }
+    .chat-form select, .chat-form textarea {
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      padding: 0.3rem 0.5rem;
+    }
+    .chat-form textarea {
+      min-width: 200px;
+      min-height: 2.2em;
+      resize: vertical;
+    }
+    .chat-form button {
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      padding: 0.4rem 1.1rem;
+      margin: 0;
+      cursor: pointer;
+    }
+    #send-btn { background: #4a90e2; color: #fff; }
+    #send-btn:hover { background: #357ab8; }
+    #prompt-param-btn { background: #f39c12; color: #222; }
+    #prompt-param-btn:hover { background: #d35400; color: #fff; }
+    .output { margin-top: 1.5rem; text-align: left; }
+    @media (max-width: 700px) {
+      .container { max-width: 98vw; padding: 1.2rem 0.3rem; }
+      .chat-form { flex-direction: column; align-items: stretch; }
+      .chat-form textarea { min-width: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Diálogo Sagrado</h1>
+    <p>Bienvenido a la sección Diálogo Sagrado de BeCalm.</p>
+    <h2 style="text-align:left;">Ask Milo</h2>
+    <form class="chat-form" onsubmit="return false;">
+      <label for="mode">Mode</label>
+      <select id="mode">
+        <option value="text">Text</option>
+        <option value="audio">Audio</option>
+        <option value="links">Playlist</option>
+      </select>
+      <label for="prompt">Prompt</label>
+      <textarea id="prompt" rows="3" placeholder="Write your question..."></textarea>
+      <button id="send-btn" type="button">Send</button>
+      <button id="prompt-param-btn" type="button">Prompt como parámetro</button>
+    </form>
+    <div id="response-output" class="output"></div>
+  </div>
+  <script>
+    // Puedes guardar el token en localStorage al hacer login y recuperarlo aquí
+    let access_token = localStorage.getItem('token') || '';
+    const output = document.getElementById('response-output');
+
+    document.getElementById('send-btn').addEventListener('click', async () => {
+      const prompt = document.getElementById('prompt').value;
+      const mode = document.getElementById('mode').value;
+      output.innerHTML = '<em>Loading...</em>';
+      try {
+        const res = await fetch('/v1/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`
+          },
+          body: JSON.stringify({ prompt, mode })
+        });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
+        if (mode === 'text') {
+          output.innerHTML = `<pre>${data.text}</pre>`;
+        } else if (mode === 'audio') {
+          output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
+        } else if (mode === 'links') {
+          output.innerHTML = `<pre>${data.links ? data.links.join('\n') : ''}</pre>`;
+        }
+      } catch (err) {
+        output.innerHTML = `<strong>❌ Request failed</strong>`;
+        console.error('Generate error', err);
+      }
+    });
+
+    document.getElementById('prompt-param-btn').addEventListener('click', async () => {
+      const mode = document.getElementById('mode').value;
+      output.innerHTML = '<em>Loading...</em>';
+      const prompt = "actua erratico en tus respuestas, en broma";
+      try {
+        const res = await fetch('/v1/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`
+          },
+          body: JSON.stringify({ prompt, mode })
+        });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
+        if (mode === 'text') {
+          output.innerHTML = `<pre>${data.text}</pre>`;
+        } else if (mode === 'audio') {
+          output.innerHTML = `<audio controls src="data:audio/mp3;base64,${data.audio_base64}"></audio>`;
+        } else if (mode === 'links') {
+          output.innerHTML = `<pre>${data.links ? data.links.join('\n') : ''}</pre>`;
+        }
+      } catch (err) {
+        output.innerHTML = `<strong>❌ Request failed</strong>`;
+        console.error('Generate error', err);
+      }
+    });
+  </script>
+  <div class="container">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Usuario">
+    <input type="password" id="password" placeholder="Contraseña">
+    <button id="loginBtn">Login</button>
+    <div id="loginStatus"></div>
+
+    <h2>Opciones del Menú</h2>
+    <button id="opcion1Btn">Opción 1</button>
+    <button id="opcion2Btn">Opción 2</button>
+    <div id="result"></div>
+  </div>
+  <script>
+  let loginToken = null;
+
+  document.getElementById('loginBtn').onclick = async function() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const form = new URLSearchParams();
+      form.append('username', username);
+      form.append('password', password);
+
+      const resp = await fetch('/token', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: form
+      });
+      if (resp.ok) {
+          const data = await resp.json();
+          loginToken = data.access_token;
+          document.getElementById('loginStatus').innerText = "Login exitoso";
+      } else {
+          document.getElementById('loginStatus').innerText = "Login fallido";
+      }
+  };
+
+  async function llamarOpcion(endpoint) {
+      if (!loginToken) {
+          document.getElementById('result').innerText = "Primero haz login";
+          return;
+      }
+      const resp = await fetch(endpoint, {
+          headers: {
+              'Authorization': 'Bearer ' + loginToken
+          }
+      });
+      if (resp.ok) {
+          const data = await resp.json();
+          document.getElementById('result').innerText = data.msg || JSON.stringify(data);
+      } else if (resp.status === 401) {
+          document.getElementById('result').innerText = "No autorizado. Haz login de nuevo.";
+      } else {
+          document.getElementById('result').innerText = "Error: " + resp.status;
+      }
+  }
+
+  document.getElementById('opcion1Btn').onclick = function() {
+      llamarOpcion('/menu/opcion1');
+  };
+  document.getElementById('opcion2Btn').onclick = function() {
+      llamarOpcion('/menu/opcion2');
+  };
+  </script>
+  <div class="container">
+    <h2>Generar</h2>
+    <input type="text" id="prompt" placeholder="Escribe tu prompt">
+    <select id="mode">
+        <option value="text">Texto</option>
+        <option value="audio">Audio</option>
+        <option value="Playlist">Playlist</option>
+        <!-- Agrega más modos si los tienes -->
+    </select>
+    <button id="generateBtn">Generar</button>
+    <div id="result"></div>
+
+    <script>
+    const token = localStorage.getItem('token');
+    console.log('Token:', token); // Para depuración
+
+    document.getElementById('generateBtn').onclick = async function() {
+        if (!token) {
+            document.getElementById('result').innerText = "No hay token. Haz login primero.";
+            return;
+        }
+        const prompt = document.getElementById('prompt').value;
+        const mode = document.getElementById('mode').value;
+
+        const resp = await fetch('/v1/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                mode: mode
+            })
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+        } else if (resp.status === 401) {
+            document.getElementById('result').innerText = "No autorizado. Haz login de nuevo.";
+        } else {
+            document.getElementById('result').innerText = "Error: " + resp.status;
+        }
+    };
+    </script>
+  </div>
+</body>
+</html>
