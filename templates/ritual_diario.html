@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Ritual Diario – BeCalm{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Ritual Diario</h1>
+  <div id="ritual-text" class="mensaje-box"></div>
+  <label for="timerSelect">Temporizador (min):</label>
+  <select id="timerSelect">
+    <option value="0">—</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+  </select>
+  <button id="done-btn">Hecho</button>
+  <div id="timer-display"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function cargarRitual() {
+    const res = await fetch('/v1/generate', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+localStorage.getItem('token')
+      },
+      body: JSON.stringify({ mode:'ritual_diario', prompt:'' })
+    });
+    const d = await res.json();
+    document.getElementById('ritual-text').innerText = d.text;
+  }
+  document.getElementById('done-btn').onclick = () => {
+    const mins = +document.getElementById('timerSelect').value;
+    let secs = mins * 60;
+    const disp = document.getElementById('timer-display');
+    if (!mins) return;
+    disp.innerText = `${mins}:00`;
+    const iv = setInterval(() => {
+      secs--;
+      disp.innerText = `${Math.floor(secs/60)}:${('0'+(secs%60)).slice(-2)}`;
+      if (secs<=0) {
+        clearInterval(iv);
+        alert('Ritual completado 🙏');
+      }
+    }, 1000);
+  };
+  window.addEventListener('DOMContentLoaded', cargarRitual);
+</script>
+{% endblock %}

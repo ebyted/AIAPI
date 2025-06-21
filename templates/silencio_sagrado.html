@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Silencio Sagrado – BeCalm{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Silencio Sagrado</h1>
+  <div id="phrase" class="mensaje-box"></div>
+  <label for="silenceSelect">Duración (min):</label>
+  <select id="silenceSelect">
+    <option value="1">1</option>
+    <option value="3">3</option>
+    <option value="5">5</option>
+    <option value="10">10</option>
+  </select>
+  <button id="start-btn">Comenzar silencio</button>
+  <button id="stop-btn">Terminar silencio</button>
+  <div id="countdown"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function cargarFrase() {
+    const res = await fetch('/v1/generate', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+localStorage.getItem('token')
+      },
+      body: JSON.stringify({ mode:'silencio_sagrado', prompt:'' })
+    });
+    const d = await res.json();
+    document.getElementById('phrase').innerText = d.text;
+  }
+
+  let intervalId;
+  document.getElementById('start-btn').onclick = () => {
+    let secs = +document.getElementById('silenceSelect').value * 60;
+    const cd = document.getElementById('countdown');
+    cd.innerText = `${Math.floor(secs/60)}:${('0'+secs%60).slice(-2)}`;
+    intervalId = setInterval(() => {
+      secs--;
+      cd.innerText = `${Math.floor(secs/60)}:${('0'+secs%60).slice(-2)}`;
+      if (secs<=0) {
+        clearInterval(intervalId);
+        alert('Silencio terminado 🙏');
+      }
+    }, 1000);
+  };
+  document.getElementById('stop-btn').onclick = () => {
+    clearInterval(intervalId);
+    document.getElementById('countdown').innerText = '';
+  };
+
+  window.addEventListener('DOMContentLoaded', cargarFrase);
+</script>
+{% endblock %}

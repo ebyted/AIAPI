@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Oráculo – Mensajes del Alma{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Microoráculo</h1>
+  <input type="text" id="claveInput" placeholder="Escribe tu símbolo o palabra" />
+  <button id="ask-btn">Pedir visión</button>
+  <div id="oracle-panel" class="mensaje-box"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('ask-btn').onclick = async () => {
+    const clave = document.getElementById('claveInput').value;
+    const res = await fetch('/v1/generate', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+localStorage.getItem('token')
+      },
+      body: JSON.stringify({
+        mode: 'mensajes_alma_microoraculo',
+        prompt: clave
+      })
+    });
+    const d = await res.json();
+    document.getElementById('oracle-panel').innerText = d.text;
+  };
+</script>
+{% endblock %}

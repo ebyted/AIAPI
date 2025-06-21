@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+<div class="container">
+  <h1>Diario Vivo</h1>
+  <label id="pregunta" class="question"></label>
+  <form id="diario-form" onsubmit="return false;">
+    <input type="date" id="fecha" required />
+    <input type="text" id="emocion" placeholder="Emoción" required />
+    <input type="text" id="mente" placeholder="Mente" />
+    <input type="text" id="cuerpo" placeholder="Cuerpo" />
+    <button id="save-btn" type="button">Guardar</button>
+  </form>
+  <div id="save-status"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const res = await fetch('/v1/diario_vivo/init', {
+      headers: {'Authorization':'Bearer '+localStorage.getItem('token')}
+    });
+    const d = await res.json();
+    document.getElementById('pregunta').innerText = d.pregunta;
+    document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+  });
+
+  document.getElementById('save-btn').onclick = async () => {
+    const payload = {
+      fecha: document.getElementById('fecha').value,
+      emocion: document.getElementById('emocion').value,
+      mente: document.getElementById('mente').value,
+      cuerpo: document.getElementById('cuerpo').value
+    };
+    const res = await fetch('/v1/diario_vivo/save', {
+      method:'POST',
+      headers: {
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+localStorage.getItem('token')
+      },
+      body: JSON.stringify(payload)
+    });
+    document.getElementById('save-status').innerText = res.ok ? 'Guardado ⭐' : 'Error al guardar ❌';
+  };
+</script>
+{% endblock %}

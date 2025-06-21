@@ -12,7 +12,7 @@ from openai import OpenAI
 from fastapi import FastAPI, Depends, HTTPException, status, Request, APIRouter
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -64,9 +64,13 @@ Instrumentator().instrument(app).expose(app)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+from fastapi.templating import Jinja2Templates
+
+templates = Jinja2Templates(directory="templates")
+
 @app.get("/", include_in_schema=False)
 async def serve_index():
-    return FileResponse(os.path.join("static", "index.html"))
+    return FileResponse(os.path.join("templates", "index.html"))
 
 @app.get("/health", summary="Health Check")
 async def health():
@@ -75,6 +79,38 @@ async def health():
 @app.get("/token", include_in_schema=False)
 async def token_get():
     return JSONResponse({"detail": "Use POST /token to authenticate"}, status_code=200)
+
+@app.get("/menu", response_class=HTMLResponse)
+async def menu(request: Request):
+    return templates.TemplateResponse("menu.html", {"request": request})
+
+@app.get("/dialogo_sagrado", response_class=HTMLResponse)
+async def dialogo_sagrado(request: Request):
+    return templates.TemplateResponse("dialogo_sagrado.html", {"request": request})
+
+@app.get("/diario_vivo", response_class=HTMLResponse)
+async def diario_vivo(request: Request):
+    return templates.TemplateResponse("diario_vivo.html", {"request": request})
+
+@app.get("/mensajes_del_alma", response_class=HTMLResponse)
+async def mensajes_del_alma(request: Request):
+    return templates.TemplateResponse("mensajes_del_alma.html", {"request": request})
+
+@app.get("/medita_conmigo", response_class=HTMLResponse)
+async def medita_conmigo(request: Request):
+    return templates.TemplateResponse("medita_conmigo.html", {"request": request})
+
+@app.get("/mapa_interior", response_class=HTMLResponse)
+async def mapa_interior(request: Request):
+    return templates.TemplateResponse("mapa_interior.html", {"request": request})
+
+@app.get("/ritual_diario", response_class=HTMLResponse)
+async def ritual_diario(request: Request):
+    return templates.TemplateResponse("ritual_diario.html", {"request": request})
+
+@app.get("/silencio_sagrado", response_class=HTMLResponse)
+async def silencio_sagrado(request: Request):
+    return templates.TemplateResponse("silencio_sagrado.html", {"request": request})
 
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
@@ -200,6 +236,18 @@ async def generate(
         return {"tracks": tracks}
     else:
         raise HTTPException(status_code=400, detail="Invalid mode")
+
+@app.get("/dialogo_sagrado", response_class=HTMLResponse)
+async def dialogo_sagrado(request: Request):
+    return templates.TemplateResponse("dialogo_sagrado.html", {"request": request})
+
+@app.get("/diario_vivo", response_class=HTMLResponse)
+async def diario_vivo(request: Request):
+    return templates.TemplateResponse("diario_vivo.html", {"request": request})
+
+@app.get("/menu", response_class=HTMLResponse)
+async def menu(request: Request):
+    return templates.TemplateResponse("menu.html", {"request": request})
 
 if __name__ == "__main__":
     modo = "dialogo_sagrado"

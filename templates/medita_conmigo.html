@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Medita Conmigo – BeCalm{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Medita Conmigo</h1>
+  <div class="options">
+    <button class="med-btn" data-type="corto">Corto (5 min)</button>
+    <button class="med-btn" data-type="medio">Medio (10 min)</button>
+    <button class="med-btn" data-type="largo">Largo (15 min)</button>
+  </div>
+  <label for="voiceSelect">Voz:</label>
+  <select id="voiceSelect">
+    <option value="female">Femenino</option>
+    <option value="male">Masculino</option>
+  </select>
+
+  <div id="audio-container"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.med-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const tipo = btn.dataset.type;
+      const voz  = document.getElementById('voiceSelect').value;
+      const container = document.getElementById('audio-container');
+      container.innerHTML = '<em>Generando audio…</em>';
+
+      const res = await fetch('/v1/generate', {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':'Bearer '+localStorage.getItem('token')
+        },
+        body: JSON.stringify({
+          prompt: tipo,
+          mode: 'medita_conmigo',
+          params: { voice: voz }
+        })
+      });
+      const d = await res.json();
+      container.innerHTML = `<audio controls src="data:audio/mp3;base64,${d.audio_base64}"></audio>`;
+    };
+  });
+</script>
+{% endblock %}

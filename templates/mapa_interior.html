@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Mapa Interior – BeCalm{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Mapa Interior</h1>
+  <canvas id="mapaCanvas" width="600" height="400" style="border:1px solid #ccc;"></canvas>
+  <div class="controls">
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">-</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const canvas = document.getElementById('mapaCanvas');
+  const ctx = canvas.getContext('2d');
+  let scale = 1, nodes = [];
+
+  async function cargarNodos() {
+    const res = await fetch('/v1/mapa_interior/nodes', {
+      headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }
+    });
+    nodes = await res.json(); // [{x, y, texto, fecha},…]
+    dibujar();
+  }
+
+  function dibujar() {
+    ctx.setTransform(scale,0,0,scale,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    nodes.forEach(n => {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 8, 0, 2*Math.PI);
+      ctx.fill();
+    });
+  }
+
+  canvas.onclick = e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX-rect.left)/scale;
+    const y = (e.clientY-rect.top)/scale;
+    nodes.forEach(n => {
+      const d = Math.hypot(n.x-x,n.y-y);
+      if (d<8) alert(`${n.fecha}\n\n${n.texto}`);
+    });
+  };
+
+  document.getElementById('zoomIn').onclick = () => { scale *=1.2; dibujar(); };
+  document.getElementById('zoomOut').onclick = () => { scale /=1.2; dibujar(); };
+
+  window.addEventListener('DOMContentLoaded', cargarNodos);
+</script>
+{% endblock %}
