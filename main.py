@@ -54,10 +54,11 @@ app.add_middleware(
         "http://172.31.0.1:3000",
         "http://172.31.0.1:3001",
         "http://127.0.0.1:8011",
-        "http://127.0.0.1:55627"
+        "http://127.0.0.1:55627",
+        "*"  # Permitir todos los orígenes durante desarrollo
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 app.state.limiter = limiter
