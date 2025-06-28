@@ -2,7 +2,7 @@
 # Copia este archivo como .env en tu servidor
 
 # OpenAI
-OPENAI_API_KEY=tu_openai_api_key_aqui
+OPENAI_API_KEY=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
 
 # Aplicación
 ENVIRONMENT=production
@@ -18,10 +18,10 @@ DATABASE_URL=postgresql://user:password@localhost/dbname
 
 # Servidor
 HOST=0.0.0.0
-PORT=8000
+PORT=8011
 
 # CORS - Orígenes permitidos (separados por coma)
-ALLOWED_ORIGINS=https://tu-dominio.com,https://www.tu-dominio.com
+ALLOWED_ORIGINS=http://168.231.67.221:8011,https://168.231.67.221:8011
 
 # Logs
 LOG_LEVEL=INFO

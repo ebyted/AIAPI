@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  becalm-api:
+    build:
+      context: .
+      dockerfile: Dockerfile_production
+    ports:
+      - "8011:8011"
+    environment:
+      - ENVIRONMENT=production
+      - HOST=0.0.0.0
+      - PORT=8011
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./milo.db}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_ORIGINS=http://168.231.67.221:8011,https://168.231.67.221:8011
+    volumes:
+      - ./milo.db:/app/milo.db  # Solo si usas SQLite
+      - ./static:/app/static
+      - ./templates:/app/templates
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Opcional: Base de datos PostgreSQL para producción
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: becalm
+  #     POSTGRES_USER: becalm_user
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data:
