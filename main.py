@@ -1,6 +1,6 @@
 import os
 import logging
-from prompts import get_prompt_by_mode
+from prompts import get_prompt_by_mode, PROMPTS
 
 from datetime import datetime, timedelta
 from typing import Optional, Generator
@@ -25,8 +25,10 @@ from sqlalchemy.orm import Session
 import models
 import crud
 from database import SessionLocal, engine
-
 from models import AdminUser
+
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -51,7 +53,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://172.31.0.1:3000",
         "http://172.31.0.1:3001",
-        "http://127.0.0.1:8011"
+        "http://127.0.0.1:8011",
         "http://127.0.0.1:55627"
     ],
     allow_credentials=True,
@@ -67,6 +69,41 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="templates")
+
+# Model classes
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserCreate(BaseModel):
+    username: str
+    full_name: Optional[str] = None
+    password: str
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    mode: str  # text | audio | links
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
+    exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: Optional[str] = payload.get("sub")
+        if not username:
+            raise exc
+    except JWTError:
+        raise exc
+    user = crud.get_user(db, username)
+    if not user:
+        raise exc
+    return user
 
 @app.get("/", include_in_schema=False)
 async def serve_index():
@@ -87,6 +124,48 @@ async def menu(request: Request):
 @app.get("/dialogo_sagrado", response_class=HTMLResponse)
 async def dialogo_sagrado(request: Request):
     return templates.TemplateResponse("dialogo_sagrado.html", {"request": request})
+
+@app.get("/dialogo_conmigo/history")
+async def history(days: int = 2, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    msgs = crud.get_messages(db, current_user.id, days)
+    return [{"role": m.role, "content": m.content, "timestamp": m.timestamp.isoformat()} for m in msgs]
+
+@app.post("/dialogo_conmigo/message")
+async def save_and_generate(
+    req: GenerateRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user)
+):
+    # Guarda el mensaje del usuario
+    crud.create_message(db, user.id, 'user', req.prompt)
+
+    # Usa la lógica de generación de AIAPI
+    prompt_to_use = req.prompt
+    if req.mode in PROMPTS:
+        user_vars = {
+            "full_name": user.full_name,
+            "username": user.username
+        }
+        prompt_text = get_prompt_by_mode(req.mode, user_vars, prompt_to_use)
+        resp = client.chat.completions.create(
+            model=MILO_MODEL_ID,
+            messages=[{"role": "user", "content": prompt_text}],
+            temperature=0.7,
+            max_tokens=250
+        )
+        resp_text = resp.choices[0].message.content.strip()
+    else:
+        resp = client.chat.completions.create(
+            model=MILO_MODEL_ID,
+            messages=[{"role": "user", "content": prompt_to_use}],
+            temperature=0.7,
+            max_tokens=250
+        )
+        resp_text = resp.choices[0].message.content.strip()
+
+    # Guarda la respuesta de la IA
+    crud.create_message(db, user.id, 'ai', resp_text)
+    return {"text": resp_text}
 
 @app.get("/diario_vivo", response_class=HTMLResponse)
 async def diario_vivo(request: Request):
@@ -112,26 +191,6 @@ async def ritual_diario(request: Request):
 async def silencio_sagrado(request: Request):
     return templates.TemplateResponse("silencio_sagrado.html", {"request": request})
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class UserCreate(BaseModel):
-    username: str
-    full_name: Optional[str] = None
-    password: str
-
-class GenerateRequest(BaseModel):
-    prompt: str
-    mode: str  # text | audio | links
-
 @app.post("/register", status_code=201)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     if crud.get_user(db, user.username):
@@ -148,20 +207,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = jwt.encode({"sub": user.username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
-    exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: Optional[str] = payload.get("sub")
-        if not username:
-            raise exc
-    except JWTError:
-        raise exc
-    user = crud.get_user(db, username)
-    if not user:
-        raise exc
-    return user
 
 # ------------------- MENÚ PROTEGIDO CON ROUTER -------------------
 
@@ -236,25 +281,6 @@ async def generate(
         return {"tracks": tracks}
     else:
         raise HTTPException(status_code=400, detail="Invalid mode")
-
-@app.get("/dialogo_sagrado", response_class=HTMLResponse)
-async def dialogo_sagrado(request: Request):
-    return templates.TemplateResponse("dialogo_sagrado.html", {"request": request})
-
-@app.get("/diario_vivo", response_class=HTMLResponse)
-async def diario_vivo(request: Request):
-    return templates.TemplateResponse("diario_vivo.html", {"request": request})
-
-@app.get("/menu", response_class=HTMLResponse)
-async def menu(request: Request):
-    return templates.TemplateResponse("menu.html", {"request": request})
-
-if __name__ == "__main__":
-    modo = "dialogo_sagrado"
-    user_vars = {"nombre": "Juan"}
-    extra = "Quiero sentirme en paz."
-    prompt = get_prompt_by_mode(modo, user_vars, extra)
-    print(prompt)
 
 if __name__ == "__main__":
     import uvicorn

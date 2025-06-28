@@ -82,5 +82,14 @@
     }
   </script>
 
+  <script>
+    // Verificar autenticación
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // Si no hay token, redirigir al login
+      window.location.href = '/';
+    }
+  </script>
+
 </body>
 </html>
