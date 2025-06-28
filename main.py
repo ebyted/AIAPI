@@ -234,6 +234,48 @@ app.include_router(menu_router)
 
 # ------------------- FIN MENÚ PROTEGIDO -------------------
 
+@app.post("/meditation/music")
+async def get_meditation_music(
+    req: GenerateRequest,
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        # Usar el endpoint de Playlist que ya tienes
+        if req.mode == "Playlist":
+            tracks = []
+            with open("lista_meditacion.txt", "r", encoding="utf-8") as f:
+                for i, line in enumerate(f):
+                    if i >= 5: break  # Máximo 5 canciones
+                    if line.strip():
+                        tracks.append(line.strip())
+            return {"tracks": tracks}
+        else:
+            # Generar recomendaciones con IA
+            prompt_text = f"Recomienda 5 canciones instrumentales relajantes para meditación de {req.prompt}. Lista solo los nombres."
+            resp = client.chat.completions.create(
+                model=MILO_MODEL_ID,
+                messages=[{"role": "user", "content": prompt_text}],
+                temperature=0.7,
+                max_tokens=200
+            )
+            
+            # Parsear la respuesta en una lista
+            response_text = resp.choices[0].message.content.strip()
+            tracks = [track.strip() for track in response_text.split('\n') if track.strip()]
+            
+            return {"tracks": tracks[:5]}  # Máximo 5 canciones
+            
+    except Exception as e:
+        # Fallback con canciones predefinidas
+        fallback_tracks = [
+            "Sonidos del Océano - Meditación Profunda",
+            "Bosque Encantado - Música Ambient", 
+            "Lluvia Suave - Relajación Total",
+            "Campanas Tibetanas - Armonía Interior",
+            "Naturaleza Serena - Paz Mental"
+        ]
+        return {"tracks": fallback_tracks}
+
 @app.post("/v1/generate")
 @limiter.limit("5/minute")
 async def generate(
