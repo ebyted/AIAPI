@@ -1,6 +1,25 @@
 import os
 import logging
-from prompts import get_prompt_by_mode, PROMPTS
+from prompts import ge# Configuración para producción
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:8011").split(",")
+
+# En desarrollo, agregar localhost
+if ENVIRONMENT == "development":
+    ALLOWED_ORIGINS.extend([
+        "http://localhost:8007",
+        "http://localhost:3000",
+        "http://127.0.0.1:8011",
+        "http://127.0.0.1:55627"
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+), PROMPTS
 
 from datetime import datetime, timedelta
 from typing import Optional, Generator
