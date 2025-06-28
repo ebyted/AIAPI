@@ -1,0 +1,27 @@
+# Configuración para Producción
+# Copia este archivo como .env en tu servidor
+
+# OpenAI
+OPENAI_API_KEY=tu_openai_api_key_aqui
+
+# Aplicación
+ENVIRONMENT=production
+SECRET_KEY=tu_secret_key_super_seguro_aqui_minimo_32_caracteres
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Modelo
+MILO_MODEL_ID=gpt-3.5-turbo
+
+# Base de datos (PostgreSQL recomendado para producción)
+DATABASE_URL=postgresql://user:password@localhost/dbname
+# O SQLite para pruebas: sqlite:///./milo.db
+
+# Servidor
+HOST=0.0.0.0
+PORT=8000
+
+# CORS - Orígenes permitidos (separados por coma)
+ALLOWED_ORIGINS=https://tu-dominio.com,https://www.tu-dominio.com
+
+# Logs
+LOG_LEVEL=INFO

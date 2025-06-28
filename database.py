@@ -12,3 +12,17 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Test connection function
+def test_connection():
+    """Test database connection"""
+    try:
+        with engine.connect() as connection:
+            print("✅ Database connection successful")
+            return True
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}")
+        return False
+
+if __name__ == "__main__":
+    test_connection()

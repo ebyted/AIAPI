@@ -1,0 +1,32 @@
+# Dockerfile para producción
+FROM python:3.10-slim
+
+# Establecer directorio de trabajo
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements y instalar dependencias Python
+COPY requirements_production.txt .
+RUN pip install --no-cache-dir -r requirements_production.txt
+
+# Copiar código de la aplicación
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p static templates
+
+# Variables de entorno por defecto
+ENV ENVIRONMENT=production
+ENV HOST=0.0.0.0
+ENV PORT=8000
+
+# Exponer puerto
+EXPOSE 8000
+
+# Comando para ejecutar la aplicación
+CMD ["python", "main_production.py"]
