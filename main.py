@@ -48,8 +48,8 @@ app = FastAPI(title="Milo API", version="1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:8007",
-        "http://168.231.67.221:8007",
+        "http://localhost:8011",
+        "http://168.231.67.221:8011",
         "http://localhost:3000",
         "http://172.31.0.1:3000",
         "http://172.31.0.1:3001",
