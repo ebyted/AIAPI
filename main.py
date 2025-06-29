@@ -3,7 +3,7 @@ import logging
 from prompts import get_prompt_by_mode, PROMPTS
 
 from datetime import datetime, timedelta
-from typing import Optional, Generator, List
+from typing import Optional, Generator, List, Dict, Any
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -25,6 +25,7 @@ from datetime import date, time
 
 import models
 import crud
+import crud_profile
 from database import SessionLocal, engine
 from models import AdminUser
 
@@ -789,6 +790,229 @@ async def generate(
         raise
     except Exception as e:
         logger.error(f"Error en v1/generate: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+# Agregar después de los modelos Pydantic existentes
+
+class UserProfileResponse(BaseModel):
+    id: int
+    user_id: int
+    avatar_url: Optional[str]
+    bio: Optional[str]
+    phone: Optional[str]
+    timezone: str
+    email_notifications: bool
+    push_notifications: bool
+    meditation_reminders: bool
+    created_at: datetime
+    updated_at: datetime
+
+class UserProfileUpdate(BaseModel):
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    phone: Optional[str] = None
+    timezone: Optional[str] = None
+    email_notifications: Optional[bool] = None
+    push_notifications: Optional[bool] = None
+    meditation_reminders: Optional[bool] = None
+
+class UserOnboardingUpdate(BaseModel):
+    full_name: Optional[str] = None
+    birth_date: Optional[str] = None  # YYYY-MM-DD
+    birth_place: Optional[str] = None
+    birth_time: Optional[str] = None  # HH:MM
+    temple_name: Optional[str] = None
+    emotional_state: Optional[str] = None
+    intention: Optional[str] = None
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class HeartRateDataResponse(BaseModel):
+    id: int
+    heart_rate: int
+    recorded_at: datetime
+    device_type: str
+    activity_type: Optional[str]
+    stress_level: Optional[int]
+
+class DashboardStatsResponse(BaseModel):
+    period_days: int
+    total_events: int
+    event_counts: dict[str, int]  # ← Cambiar Dict por dict
+    total_meditation_minutes: float
+    heart_rate_stats: Optional[dict[str, Any]]  # ← También aquí
+    most_used_feature: Optional[str]
+
+class AppEventResponse(BaseModel):
+    id: int
+    event_type: str
+    event_name: str
+    duration_minutes: Optional[float]
+    details: Optional[str]
+    created_at: datetime
+
+# Agregar estos endpoints antes del final del archivo, después de los endpoints de onboarding
+
+# ================= PROFILE ENDPOINTS =================
+
+@app.get("/profile", response_model=UserProfileResponse, tags=["profile"])
+async def get_profile(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Obtener perfil del usuario"""
+    try:
+        profile = crud_profile.get_user_profile(db, current_user.id)
+        
+        if not profile:
+            # Crear perfil por defecto si no existe
+            profile = crud_profile.create_user_profile(db, current_user.id)
+        
+        return profile
+    except Exception as e:
+        logger.error(f"Error obteniendo perfil: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.put("/profile", response_model=UserProfileResponse, tags=["profile"])
+async def update_profile(
+    profile_update: UserProfileUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Actualizar perfil del usuario"""
+    try:
+        update_data = profile_update.dict(exclude_unset=True)
+        profile = crud_profile.update_user_profile(db, current_user.id, **update_data)
+        return profile
+    except Exception as e:
+        logger.error(f"Error actualizando perfil: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.put("/profile/onboarding", tags=["profile"])
+async def update_onboarding_data(
+    onboarding_update: UserOnboardingUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Actualizar datos del onboarding"""
+    try:
+        update_data = onboarding_update.dict(exclude_unset=True)
+        
+        # Convertir fechas si es necesario
+        if 'birth_date' in update_data and update_data['birth_date']:
+            try:
+                update_data['birth_date'] = datetime.strptime(update_data['birth_date'], '%Y-%m-%d').date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+        
+        if 'birth_time' in update_data and update_data['birth_time']:
+            try:
+                update_data['birth_time'] = datetime.strptime(update_data['birth_time'], '%H:%M').time()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Formato de hora inválido. Use HH:MM")
+        
+        user = crud_profile.update_user_onboarding_data(db, current_user.id, **update_data)
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        return {"message": "Datos de onboarding actualizados exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error actualizando onboarding: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/profile/change-password", tags=["profile"])
+async def change_password(
+    password_request: PasswordChangeRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cambiar contraseña del usuario"""
+    try:
+        # Verificar contraseña actual
+        if not crud.authenticate_user(db, current_user.username, password_request.current_password):
+            raise HTTPException(status_code=400, detail="Contraseña actual incorrecta")
+        
+        # Cambiar contraseña
+        user = crud_profile.change_user_password(db, current_user.id, password_request.new_password)
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        return {"message": "Contraseña cambiada exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cambiando contraseña: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.get("/profile/heart-rate", response_model=List[HeartRateDataResponse], tags=["profile", "dashboard"])
+async def get_heart_rate_history(
+    days: int = 7,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener historial de ritmo cardíaco"""
+    try:
+        heart_rate_data = crud_profile.get_heart_rate_history(db, current_user.id, days)
+        return heart_rate_data
+    except Exception as e:
+        logger.error(f"Error obteniendo datos de ritmo cardíaco: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.get("/profile/dashboard", response_model=DashboardStatsResponse, tags=["profile", "dashboard"])
+async def get_dashboard_stats_endpoint(
+    days: int = 7,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener estadísticas del dashboard"""
+    try:
+        stats = crud_profile.get_dashboard_stats(db, current_user.id, days)
+        return stats
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas del dashboard: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.get("/profile/events", response_model=List[AppEventResponse], tags=["profile", "dashboard"])
+async def get_app_events(
+    days: int = 30,
+    event_type: Optional[str] = None,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener historial de eventos de la app"""
+    try:
+        events = crud_profile.get_app_events_history(db, current_user.id, days, event_type)
+        return events
+    except Exception as e:
+        logger.error(f"Error obteniendo eventos: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/profile/simulate-data", tags=["profile", "testing"])
+async def simulate_user_data(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Simular datos para testing (solo en desarrollo)"""
+    if ENVIRONMENT != "development":
+        raise HTTPException(status_code=403, detail="Solo disponible en desarrollo")
+    
+    try:
+        # Simular datos de ritmo cardíaco (últimos 7 días)
+        hr_count = crud_profile.simulate_heart_rate_data(db, current_user.id, 7)
+        
+        # Simular eventos de la app (últimos 30 días)
+        events_count = crud_profile.simulate_app_events(db, current_user.id, 30)
+        
+        return {
+            "message": "Datos simulados creados exitosamente",
+            "heart_rate_records": hr_count,
+            "app_events": events_count
+        }
+    except Exception as e:
+        logger.error(f"Error simulando datos: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 if __name__ == "__main__":
