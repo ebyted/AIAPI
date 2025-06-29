@@ -3,7 +3,7 @@ import logging
 from prompts import get_prompt_by_mode, PROMPTS
 
 from datetime import datetime, timedelta
-from typing import Optional, Generator
+from typing import Optional, Generator, List
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,6 +21,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from datetime import date, time
 
 import models
 import crud
@@ -116,12 +117,106 @@ class GenerateRequest(BaseModel):
     prompt: str
     mode: str  # text | audio | links
 
+# Onboarding Models
+class OnboardingStartResponse(BaseModel):
+    session_id: str
+    message: str
+
+class OnboardingTempleRequest(BaseModel):
+    session_id: str
+    temple_name: str
+
+class OnboardingEmotionalStateRequest(BaseModel):
+    session_id: str
+    emotional_state: str
+
+class OnboardingIntentionRequest(BaseModel):
+    session_id: str
+    intention: str
+
+class OnboardingPersonalDataRequest(BaseModel):
+    session_id: str
+    full_name: str
+    birth_date: str  # YYYY-MM-DD
+    birth_place: str
+    birth_time: Optional[str] = None  # HH:MM
+
+class OnboardingCompleteRegistrationRequest(BaseModel):
+    session_id: str
+    email: str
+    password: str
+
+class OnboardingStatusResponse(BaseModel):
+    is_complete: bool
+    missing_fields: List[str]
+    progress_percentage: int
+    current_step: str
+    expires_at: str
+
+class WelcomeMessageResponse(BaseModel):
+    welcome_message: str
+    session_id: str
+
+# Constantes para opciones predefinidas
+EMOTIONAL_STATES = [
+    "En paz",
+    "Ansioso", 
+    "Esperanzado",
+    "Confundido",
+    "Alegre",
+    "Melancólico",
+    "Sereno",
+    "Inquieto",
+    "Agradecido",
+    "Nostálgico"
+]
+
+INTENTIONS = [
+    "Silencio",
+    "Guía", 
+    "Solo estar un momento",
+    "Acompañamiento suave"
+]
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+async def generate_welcome_message(session) -> str:
+    """Generar mensaje de bienvenida personalizado con IA"""
+    try:
+        prompt = f"""Actúa como una guía espiritual amorosa. Genera un mensaje de bienvenida personalizado y emotivo para alguien que acaba de completar su ritual de entrada a su templo interior.
+
+Datos de la persona:
+- Nombre: {session.full_name}
+- Templo interior: {session.temple_name}
+- Estado emocional actual: {session.emotional_state}
+- Intención: {session.intention}
+
+El mensaje debe ser:
+- Cálido y espiritual
+- Máximo 4-5 líneas
+- Que reconozca su templo y su estado actual
+- Que los invite a entrar a su espacio sagrado
+
+No uses emojis. Habla directo al alma."""
+
+        resp = client.chat.completions.create(
+            model=MILO_MODEL_ID,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.8,
+            max_tokens=200
+        )
+        
+        return resp.choices[0].message.content.strip()
+        
+    except Exception as e:
+        logger.error(f"Error generando mensaje de bienvenida: {e}")
+        # Mensaje de fallback
+        return f"Bienvenido/a {session.full_name} a tu templo {session.temple_name}. Tu espacio sagrado te espera con serenidad. Es tiempo de conectar contigo mismo/a."
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
     exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
@@ -306,6 +401,289 @@ async def menu_opcion3():
 app.include_router(menu_router)
 
 # ------------------- FIN MENÚ PROTEGIDO -------------------
+
+# ------------------- ONBOARDING ENDPOINTS (SIN AUTENTICACIÓN) -------------------
+
+@app.post("/onboarding/start", response_model=OnboardingStartResponse, tags=["onboarding"])
+async def start_onboarding(db: Session = Depends(get_db)):
+    """Iniciar nueva sesión de onboarding"""
+    try:
+        # Limpiar sesiones expiradas
+        crud.cleanup_expired_sessions(db)
+        
+        session = crud.create_onboarding_session(db)
+        
+        return OnboardingStartResponse(
+            session_id=session.session_id,
+            message="Sesión de onboarding iniciada. Bienvenido a tu espacio sagrado."
+        )
+    except Exception as e:
+        logger.error(f"Error iniciando onboarding: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/onboarding/temple", tags=["onboarding"])
+async def save_temple_name(
+    request: OnboardingTempleRequest,
+    db: Session = Depends(get_db)
+):
+    """Guardar nombre del templo interior"""
+    try:
+        session = crud.update_onboarding_session(
+            db, 
+            request.session_id, 
+            temple_name=request.temple_name
+        )
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        return {"message": f"Templo '{request.temple_name}' guardado exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error guardando templo: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/onboarding/emotional-state", tags=["onboarding"])
+async def save_emotional_state(
+    request: OnboardingEmotionalStateRequest,
+    db: Session = Depends(get_db)
+):
+    """Guardar estado emocional actual"""
+    try:
+        if request.emotional_state not in EMOTIONAL_STATES:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Estado emocional inválido. Opciones: {EMOTIONAL_STATES}"
+            )
+        
+        session = crud.update_onboarding_session(
+            db,
+            request.session_id,
+            emotional_state=request.emotional_state
+        )
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        return {"message": f"Estado emocional '{request.emotional_state}' guardado exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error guardando estado emocional: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/onboarding/intention", tags=["onboarding"])
+async def save_intention(
+    request: OnboardingIntentionRequest,
+    db: Session = Depends(get_db)
+):
+    """Guardar intención de uso de la app"""
+    try:
+        if request.intention not in INTENTIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Intención inválida. Opciones: {INTENTIONS}"
+            )
+        
+        session = crud.update_onboarding_session(
+            db,
+            request.session_id,
+            intention=request.intention
+        )
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        return {"message": f"Intención '{request.intention}' guardada exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error guardando intención: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/onboarding/personal-data", tags=["onboarding"])
+async def save_personal_data(
+    request: OnboardingPersonalDataRequest,
+    db: Session = Depends(get_db)
+):
+    """Guardar datos personales"""
+    try:
+        # Validar formato de fecha
+        try:
+            birth_date = datetime.strptime(request.birth_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+        
+        # Validar formato de hora si se proporciona
+        birth_time = None
+        if request.birth_time:
+            try:
+                birth_time = datetime.strptime(request.birth_time, "%H:%M").time()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Formato de hora inválido. Use HH:MM")
+        
+        session = crud.update_onboarding_session(
+            db,
+            request.session_id,
+            full_name=request.full_name,
+            birth_date=birth_date,
+            birth_place=request.birth_place,
+            birth_time=birth_time
+        )
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        return {"message": "Datos personales guardados exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error guardando datos personales: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.get("/onboarding/status/{session_id}", response_model=OnboardingStatusResponse, tags=["onboarding"])
+async def get_onboarding_status(session_id: str, db: Session = Depends(get_db)):
+    """Verificar estado del onboarding"""
+    try:
+        session = crud.get_onboarding_session(db, session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        is_complete, missing_fields, progress = crud.is_onboarding_complete(session)
+        
+        # Determinar paso actual
+        if not session.temple_name:
+            current_step = "temple_name"
+        elif not session.emotional_state:
+            current_step = "emotional_state"
+        elif not session.intention:
+            current_step = "intention"
+        elif not session.full_name or not session.birth_date or not session.birth_place:
+            current_step = "personal_data"
+        elif not is_complete:
+            current_step = "review"
+        else:
+            current_step = "complete"
+        
+        return OnboardingStatusResponse(
+            is_complete=is_complete,
+            missing_fields=missing_fields,
+            progress_percentage=progress,
+            current_step=current_step,
+            expires_at=session.expires_at.isoformat()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verificando estado: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/onboarding/generate-welcome", response_model=WelcomeMessageResponse, tags=["onboarding"])
+async def generate_welcome(
+    request: dict,  # {"session_id": "..."
+    db: Session = Depends(get_db)
+):
+    """Generar mensaje de bienvenida personalizado"""
+    try:
+        session_id = request.get("session_id")
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id requerido")
+        
+        session = crud.get_onboarding_session(db, session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        is_complete, _, _ = crud.is_onboarding_complete(session)
+        if not is_complete:
+            raise HTTPException(status_code=400, detail="Onboarding incompleto")
+        
+        # Generar mensaje si no existe
+        if not session.welcome_message:
+            welcome_message = await generate_welcome_message(session)
+            session = crud.update_onboarding_session(
+                db, 
+                session_id, 
+                welcome_message=welcome_message
+            )
+        
+        return WelcomeMessageResponse(
+            welcome_message=session.welcome_message,
+            session_id=session_id
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generando mensaje de bienvenida: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/onboarding/complete-registration", status_code=201, tags=["onboarding"])
+async def complete_registration(
+    request: OnboardingCompleteRegistrationRequest,
+    db: Session = Depends(get_db)
+):
+    """Completar registro con email y contraseña"""
+    try:
+        session = crud.get_onboarding_session(db, request.session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
+        
+        is_complete, missing_fields, _ = crud.is_onboarding_complete(session)
+        if not is_complete:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Onboarding incompleto. Campos faltantes: {missing_fields}"
+            )
+        
+        # Crear usuario final
+        user = crud.transfer_onboarding_to_user(
+            db,
+            request.session_id,
+            request.email,
+            request.password
+        )
+        
+        if not user:
+            raise HTTPException(status_code=400, detail="Email ya registrado o sesión inválida")
+        
+        return {
+            "message": f"Usuario {user.username} creado exitosamente",
+            "user_id": user.id,
+            "temple_name": user.temple_name
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error completando registro: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.get("/onboarding/options", tags=["onboarding"])
+async def get_onboarding_options():
+    """Obtener opciones disponibles para onboarding"""
+    return {
+        "emotional_states": EMOTIONAL_STATES,
+        "intentions": INTENTIONS
+    }
+
+# ------------------- FIN ONBOARDING ENDPOINTS -------------------
+
+@app.get("/user/onboarding-status", tags=["user"])
+async def get_user_onboarding_status(
+    current_user: models.User = Depends(get_current_user)
+):
+    """Verificar estado de onboarding de usuario autenticado"""
+    return {
+        "onboarding_completed": current_user.onboarding_completed,
+        "temple_name": current_user.temple_name,
+        "emotional_state": current_user.emotional_state,
+        "intention": current_user.intention,
+        "birth_date": current_user.birth_date.isoformat() if current_user.birth_date else None,
+        "birth_place": current_user.birth_place,
+        "birth_time": current_user.birth_time.isoformat() if current_user.birth_time else None
+    }
 
 @app.post("/meditation/music")
 async def get_meditation_music(
