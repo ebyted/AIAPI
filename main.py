@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from datetime import date, time
+import uuid
 
 import models
 import crud
@@ -405,6 +406,22 @@ app.include_router(menu_router)
 
 # ------------------- ONBOARDING ENDPOINTS (SIN AUTENTICACIÓN) -------------------
 
+def create_onboarding_session_fixed(db: Session):
+    """Crear sesión de onboarding con session_id único"""
+    session_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    expires_at = now + timedelta(hours=24)
+    session = models.UserOnboardingSession(
+        session_id=session_id,
+        created_at=now,
+        expires_at=expires_at,
+        is_completed=False
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
 @app.post("/onboarding/start", response_model=OnboardingStartResponse, tags=["onboarding"])
 async def start_onboarding(db: Session = Depends(get_db)):
     """Iniciar nueva sesión de onboarding"""
@@ -412,7 +429,8 @@ async def start_onboarding(db: Session = Depends(get_db)):
         logger.info("Limpiando sesiones expiradas...")
         crud.cleanup_expired_sessions(db)
         logger.info("Creando nueva sesión de onboarding...")
-        session = crud.create_onboarding_session(db)
+        # Usa la función corregida
+        session = create_onboarding_session_fixed(db)
         logger.info(f"Sesión creada: {session.session_id}")
         return OnboardingStartResponse(
             session_id=session.session_id,
