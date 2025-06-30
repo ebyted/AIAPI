@@ -409,18 +409,18 @@ app.include_router(menu_router)
 async def start_onboarding(db: Session = Depends(get_db)):
     """Iniciar nueva sesión de onboarding"""
     try:
-        # Limpiar sesiones expiradas
+        logger.info("Limpiando sesiones expiradas...")
         crud.cleanup_expired_sessions(db)
-        
+        logger.info("Creando nueva sesión de onboarding...")
         session = crud.create_onboarding_session(db)
-        
+        logger.info(f"Sesión creada: {session.session_id}")
         return OnboardingStartResponse(
             session_id=session.session_id,
             message="Sesión de onboarding iniciada. Bienvenido a tu espacio sagrado."
         )
     except Exception as e:
         logger.error(f"Error iniciando onboarding: {e}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {e}")
 
 @app.post("/onboarding/temple", tags=["onboarding"])
 async def save_temple_name(
