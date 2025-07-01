@@ -610,21 +610,32 @@ async def get_or_generate_welcome_message(
     """
     Obtiene o genera un mensaje de bienvenida personalizado con IA para la sesión de onboarding.
     """
+    logger.info(f"Recibida petición para generar mensaje para session_id: {request.session_id}")
+    
+    if not request.session_id:
+        logger.error("La petición llegó con un session_id NULO o VACÍO.")
+        raise HTTPException(status_code=400, detail="session_id es requerido.")
+
     try:
         session = crud.get_onboarding_session(db, request.session_id)
         if not session:
-            raise HTTPException(status_code=404, detail="Sesión de onboarding no encontrada")
+            logger.warning(f"No se encontró sesión para el id: {request.session_id}")
+            raise HTTPException(status_code=404, detail="Sesión de onboarding no encontrada o expirada.")
 
         if session.welcome_message:
+            logger.info(f"Devolviendo mensaje existente para la sesión.")
             return {"welcome_message": session.welcome_message}
 
-        # Llamada corregida (sin 'await') a la función en crud.py
+        logger.info(f"Llamando a la función de IA para generar nuevo mensaje...")
+        
+        # --- CORRECCIÓN CLAVE: Se elimina 'await' ---
         welcome_message = crud.generate_welcome_message(session)
         
         if not welcome_message:
-            raise HTTPException(status_code=500, detail="No se pudo generar el mensaje de bienvenida")
+            logger.error(f"La función de IA no pudo generar un mensaje.")
+            raise HTTPException(status_code=500, detail="No se pudo generar el mensaje de bienvenida desde el servicio de IA.")
 
-        # Actualiza la sesión en la base de datos con el nuevo mensaje
+        logger.info(f"Mensaje generado. Actualizando la sesión en la BD.")
         crud.update_onboarding_session(
             db, 
             session_id=request.session_id, 
@@ -636,8 +647,8 @@ async def get_or_generate_welcome_message(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error generando mensaje de bienvenida: {e}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor al generar el mensaje")
+        logger.error(f"Excepción no controlada en /generate-welcome: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno del servidor al procesar la solicitud.")
 
 @app.post("/onboarding/complete-registration", status_code=201, tags=["onboarding"])
 async def complete_registration(
