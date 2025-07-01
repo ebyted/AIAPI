@@ -64,6 +64,9 @@ class UserOnboardingSession(Base):
     birth_place = Column(String, nullable=True)
     birth_time = Column(Time, nullable=True)
     
+    # Agregar este campo
+    welcome_message = Column(Text, nullable=True)
+    
     # Control de sesión
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime)

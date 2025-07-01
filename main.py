@@ -33,6 +33,9 @@ from models import AdminUser
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
+
 # Configuración de OpenAI con validación
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
@@ -40,9 +43,6 @@ if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY es requerida")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
 
 # Configuración con validación
 MILO_MODEL_ID = os.getenv("MILO_MODEL_ID", "gpt-3.5-turbo")
