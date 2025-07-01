@@ -190,39 +190,6 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
-async def generate_welcome_message(session) -> str:
-    """Generar mensaje de bienvenida personalizado con IA"""
-    try:
-        prompt = f"""Actúa como una guía espiritual amorosa. Genera un mensaje de bienvenida personalizado y emotivo para alguien que acaba de completar su ritual de entrada a su templo interior.
-
-Datos de la persona:
-- Nombre: {session.full_name}
-- Templo interior: {session.temple_name}
-- Estado emocional actual: {session.emotional_state}
-- Intención: {session.intention}
-
-El mensaje debe ser:
-- Cálido y espiritual
-- Máximo 4-5 líneas
-- Que reconozca su templo y su estado actual
-- Que los invite a entrar a su espacio sagrado
-
-No uses emojis. Habla directo al alma."""
-
-        resp = client.chat.completions.create(
-            model=MILO_MODEL_ID,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.8,
-            max_tokens=200
-        )
-        
-        return resp.choices[0].message.content.strip()
-        
-    except Exception as e:
-        logger.error(f"Error generando mensaje de bienvenida: {e}")
-        # Mensaje de fallback
-        return f"Bienvenido/a {session.full_name} a tu templo {session.temple_name}. Tu espacio sagrado te espera con serenidad. Es tiempo de conectar contigo mismo/a."
-
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
     exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
     try:
