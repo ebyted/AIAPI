@@ -2,6 +2,14 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import models
+import uuid  # <-- Añadido
+import os    # <-- Añadido
+from openai import OpenAI # <-- Añadido
+
+# --- Configuración de OpenAI (Añadido) ---
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+MILO_MODEL_ID = os.getenv("MILO_MODEL_ID", "gpt-3.5-turbo")
+# -----------------------------------------
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,8 +58,12 @@ def create_message(db: Session, user_id: int, role: str, content: str):
 
 # Onboarding Session CRUD functions
 def create_onboarding_session(db: Session):
-    """Crear nueva sesión de onboarding"""
-    session = models.UserOnboardingSession()
+    """Crear nueva sesión de onboarding (CORREGIDO)"""
+    session = models.UserOnboardingSession(
+        session_id=str(uuid.uuid4()),
+        created_at=datetime.utcnow(),
+        expires_at=datetime.utcnow() + timedelta(hours=24)
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -171,3 +183,31 @@ def cleanup_expired_sessions(db: Session):
     
     db.commit()
     return len(expired_sessions)
+
+# --- Función de IA (Añadido al final) ---
+def generate_welcome_message(session: models.UserOnboardingSession) -> str:
+    """
+    Llama a la API de OpenAI para generar un mensaje de bienvenida personalizado.
+    """
+    prompt = (
+        f"Eres Milo, un guía espiritual sereno y compasivo. "
+        f"Escribe un mensaje de bienvenida corto (2-3 frases) para una persona llamada {session.full_name or 'alguien especial'}. "
+        f"Actualmente se siente '{session.emotional_state or 'en un estado de reflexión'}' y su intención al usar la app es '{session.intention or 'encontrar paz'}'. "
+        f"El mensaje debe ser cálido, inspirador y reconocer sus sentimientos e intenciones sin ser demasiado directo. "
+        f"Haz que se sienta visto/a y bienvenido/a a este espacio sagrado. No incluyas saludos como 'Hola' o 'Bienvenido/a'."
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model=MILO_MODEL_ID,
+            messages=[
+                {"role": "system", "content": "Eres un guía espiritual llamado Milo. Tus respuestas son serenas, breves y profundas."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=100
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error al llamar a OpenAI: {e}")
+        return f"Bienvenido/a a tu espacio sagrado, {session.full_name or 'viajero/a'}. Que aquí encuentres la serenidad y la guía que buscas."

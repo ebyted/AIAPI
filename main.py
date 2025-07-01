@@ -611,25 +611,24 @@ async def get_or_generate_welcome_message(
     Obtiene o genera un mensaje de bienvenida personalizado con IA para la sesión de onboarding.
     """
     try:
-        # 1. Obtener la sesión de onboarding usando el ID
         session = crud.get_onboarding_session(db, request.session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Sesión de onboarding no encontrada")
 
-        # 2. Si ya existe un mensaje, devolverlo para ahorrar costos
         if session.welcome_message:
             return {"welcome_message": session.welcome_message}
 
-        # 3. Si no existe, generar uno nuevo usando la IA
-        welcome_message = await crud.generate_welcome_message(session)
+        # Llamada corregida (sin 'await') a la función en crud.py
+        welcome_message = crud.generate_welcome_message(session)
+        
         if not welcome_message:
             raise HTTPException(status_code=500, detail="No se pudo generar el mensaje de bienvenida")
 
-        # 4. Guardar el mensaje generado en la base de datos
+        # Actualiza la sesión en la base de datos con el nuevo mensaje
         crud.update_onboarding_session(
             db, 
             session_id=request.session_id, 
-            updates={"welcome_message": welcome_message}
+            welcome_message=welcome_message
         )
 
         return {"welcome_message": welcome_message}
