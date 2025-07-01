@@ -159,6 +159,9 @@ class WelcomeMessageResponse(BaseModel):
     welcome_message: str
     session_id: str
 
+class WelcomeMessageRequest(BaseModel):
+    session_id: str
+
 # Constantes para opciones predefinidas
 EMOTIONAL_STATES = [
     "En paz",
@@ -599,44 +602,43 @@ async def get_onboarding_status(session_id: str, db: Session = Depends(get_db)):
         logger.error(f"Error verificando estado: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
-@app.post("/onboarding/generate-welcome", response_model=WelcomeMessageResponse, tags=["onboarding"])
-async def generate_welcome(
-    request: dict,  # {"session_id": "..."
+@app.post("/onboarding/generate-welcome", tags=["onboarding"])
+async def get_or_generate_welcome_message(
+    request: WelcomeMessageRequest, 
     db: Session = Depends(get_db)
 ):
-    """Generar mensaje de bienvenida personalizado"""
+    """
+    Obtiene o genera un mensaje de bienvenida personalizado con IA para la sesión de onboarding.
+    """
     try:
-        session_id = request.get("session_id")
-        if not session_id:
-            raise HTTPException(status_code=400, detail="session_id requerido")
-        
-        session = crud.get_onboarding_session(db, session_id)
-        
+        # 1. Obtener la sesión de onboarding usando el ID
+        session = crud.get_onboarding_session(db, request.session_id)
         if not session:
-            raise HTTPException(status_code=404, detail="Sesión no encontrada o expirada")
-        
-        is_complete, _, _ = crud.is_onboarding_complete(session)
-        if not is_complete:
-            raise HTTPException(status_code=400, detail="Onboarding incompleto")
-        
-        # Generar mensaje si no existe
-        if not session.welcome_message:
-            welcome_message = await generate_welcome_message(session)
-            session = crud.update_onboarding_session(
-                db, 
-                session_id, 
-                welcome_message=welcome_message
-            )
-        
-        return WelcomeMessageResponse(
-            welcome_message=session.welcome_message,
-            session_id=session_id
+            raise HTTPException(status_code=404, detail="Sesión de onboarding no encontrada")
+
+        # 2. Si ya existe un mensaje, devolverlo para ahorrar costos
+        if session.welcome_message:
+            return {"welcome_message": session.welcome_message}
+
+        # 3. Si no existe, generar uno nuevo usando la IA
+        welcome_message = await crud.generate_welcome_message(session)
+        if not welcome_message:
+            raise HTTPException(status_code=500, detail="No se pudo generar el mensaje de bienvenida")
+
+        # 4. Guardar el mensaje generado en la base de datos
+        crud.update_onboarding_session(
+            db, 
+            session_id=request.session_id, 
+            updates={"welcome_message": welcome_message}
         )
+
+        return {"welcome_message": welcome_message}
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error generando mensaje de bienvenida: {e}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail="Error interno del servidor al generar el mensaje")
 
 @app.post("/onboarding/complete-registration", status_code=201, tags=["onboarding"])
 async def complete_registration(
