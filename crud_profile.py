@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import datetime, timedelta
 from typing import List, Optional
-import models
-import crud
+from AIAPI import models
+import AIAPI.crud as crud
 import json
 import random
 

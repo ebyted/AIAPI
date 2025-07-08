@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Onboarding - Resumen{% endblock %}
+
+{% block content %}
+  <div class="onb-container">
+    <div class="onb-card">
+      <h2>Revisa tu información</h2>
+      <div id="summary-content" style="text-align:left; margin-bottom:1.5em;"></div>
+      <div id="summary-error" style="color:#e74c3c; min-height:1.5em; margin-bottom:1em;"></div>
+      <button id="edit-btn" class="onb-btn" style="background:#b0b0b0;">Editar</button>
+      <button id="confirm-btn" class="onb-btn">Finalizar y crear cuenta</button>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function loadSummary() {
+    const session_id = localStorage.getItem('onb_session_id');
+    if (!session_id) {
+      alert('Sesión de onboarding no encontrada. Vuelve a empezar.');
+      window.location.href = '/onboarding/welcome';
+      return;
+    }
+    const res = await fetch(`/onboarding/status/${session_id}`);
+    if (!res.ok) {
+      document.getElementById('summary-error').textContent = 'No se pudo cargar el resumen.';
+      return;
+    }
+    const data = await res.json();
+    let html = '';
+    html += `<strong>Templo interior:</strong> ${data.temple_name || '-'}<br>`;
+    html += `<strong>Estado emocional:</strong> ${data.emotional_state || '-'}<br>`;
+    html += `<strong>Intención:</strong> ${data.intention || '-'}<br>`;
+    html += `<strong>Nombre completo:</strong> ${data.full_name || '-'}<br>`;
+    html += `<strong>Fecha de nacimiento:</strong> ${data.birth_date || '-'}<br>`;
+    html += `<strong>Lugar de nacimiento:</strong> ${data.birth_place || '-'}<br>`;
+    html += `<strong>Hora de nacimiento:</strong> ${data.birth_time || '-'}<br>`;
+    html += `<strong>Correo electrónico:</strong> ${data.email || '-'}<br>`;
+    document.getElementById('summary-content').innerHTML = html;
+  }
+  loadSummary();
+
+  document.getElementById('edit-btn').onclick = function() {
+    window.location.href = '/onboarding/personal';
+  };
+  document.getElementById('confirm-btn').onclick = async function() {
+    const session_id = localStorage.getItem('onb_session_id');
+    if (!session_id) return;
+    const res = await fetch('/onboarding/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id })
+    });
+    if (res.ok) {
+      window.location.href = '/onboarding/welcome-message';
+    } else {
+      document.getElementById('summary-error').textContent = 'Error finalizando el onboarding.';
+    }
+  };
+</script>
+{% endblock %}

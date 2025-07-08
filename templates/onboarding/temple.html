@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Onboarding - Tu Templo Interior{% endblock %}
+
+{% block content %}
+  <div class="onb-container">
+    <div class="onb-card">
+      <h2>¿Cómo quieres llamar a tu templo interior?</h2>
+      <form id="temple-form">
+        <input type="text" id="temple_name" name="temple_name" placeholder="Ejemplo: Santuario de Paz" maxlength="40" required style="border-radius: 1.5rem;">
+        <div id="temple-error" style="color:#e74c3c; min-height:1.5em; margin-bottom:1em;"></div>
+        <button type="submit" class="onb-btn">Continuar</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const form = document.getElementById('temple-form');
+  form.onsubmit = async function(e) {
+    e.preventDefault();
+    const temple = document.getElementById('temple_name').value.trim();
+    if (!temple) {
+      document.getElementById('temple-error').textContent = 'Por favor, escribe un nombre para tu templo.';
+      return;
+    }
+    const session_id = localStorage.getItem('onb_session_id');
+    if (!session_id) {
+      alert('Sesión de onboarding no encontrada. Vuelve a empezar.');
+      window.location.href = '/onboarding/welcome';
+      return;
+    }
+    const res = await fetch('/onboarding/temple', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id, temple_name: temple })
+    });
+    if (res.ok) {
+      window.location.href = '/onboarding/emotional';
+    } else {
+      document.getElementById('temple-error').textContent = 'Error guardando el nombre. Intenta de nuevo.';
+    }
+  };
+</script>
+{% endblock %}

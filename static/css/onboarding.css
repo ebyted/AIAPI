@@ -1,0 +1,48 @@
+body {
+  background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+  min-height: 100vh;
+  margin: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.onb-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+.onb-card {
+  background: #fff;
+  border-radius: 2rem;
+  box-shadow: 0 4px 24px rgba(80,120,200,0.10);
+  padding: 2.5rem 2rem;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+.onb-card h1 {
+  color: #4a90e2;
+  margin-bottom: 1rem;
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+.onb-card p {
+  color: #555;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+.onb-btn {
+  background: linear-gradient(90deg, #6dd5ed 0%, #2193b0 100%);
+  color: #fff;
+  border: none;
+  border-radius: 2rem;
+  padding: 0.8rem 2.2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(80,120,200,0.10);
+  transition: background 0.2s, transform 0.2s;
+}
+.onb-btn:hover {
+  background: linear-gradient(90deg, #2193b0 0%, #6dd5ed 100%);
+  transform: scale(1.04);
+}

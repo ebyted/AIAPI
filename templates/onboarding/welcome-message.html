@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}¡Bienvenido a Milo!{% endblock %}
+
+{% block content %}
+  <div class="onb-container">
+    <div class="onb-card">
+      <h2>¡Bienvenido a Milo!</h2>
+      <div id="welcome-message" style="margin-bottom:1.5em;"></div>
+      <div id="login-info" style="margin-bottom:1.5em;"></div>
+      <button id="go-menu-btn" class="onb-btn">Ir al menú principal</button>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function loadWelcome() {
+    const session_id = localStorage.getItem('onb_session_id');
+    if (!session_id) {
+      alert('Sesión de onboarding no encontrada. Vuelve a empezar.');
+      window.location.href = '/onboarding/welcome';
+      return;
+    }
+    // Solicita mensaje de bienvenida IA
+    const res = await fetch('/onboarding/generate-welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('welcome-message').innerHTML = `<strong>${data.welcome_message}</strong>`;
+    } else {
+      document.getElementById('welcome-message').textContent = '¡Bienvenido!';
+    }
+    // Login automático con correo y contraseña temporal
+    const statusRes = await fetch(`/onboarding/status/${session_id}`);
+    if (statusRes.ok) {
+      const status = await statusRes.json();
+      document.getElementById('login-info').innerHTML = `Tu usuario ha sido creado.<br><strong>Correo:</strong> ${status.email}<br><strong>Contraseña temporal:</strong> ${status.temp_password}`;
+    }
+  }
+  loadWelcome();
+  document.getElementById('go-menu-btn').onclick = function() {
+    window.location.href = '/menu';
+  };
+</script>
+{% endblock %}

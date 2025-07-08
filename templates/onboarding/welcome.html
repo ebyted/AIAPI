@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Bienvenido a Milo - Onboarding{% endblock %}
+
+{% block content %}
+  <div class="onb-container">
+    <div class="onb-card">
+      <h1>Bienvenido a Milo</h1>
+      <p>Comienza tu viaje interior. El proceso es privado y solo tomará unos minutos.</p>
+      <button id="start-btn" class="onb-btn">Comenzar</button>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('start-btn').onclick = async function() {
+    // Inicia sesión de onboarding en backend
+    const res = await fetch('/onboarding/start', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('onb_session_id', data.session_id);
+      window.location.href = '/onboarding/temple';
+    } else {
+      alert('Error iniciando onboarding. Intenta de nuevo.');
+    }
+  };
+</script>
+{% endblock %}

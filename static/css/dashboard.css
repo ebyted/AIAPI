@@ -1,0 +1,11 @@
+/* Dashboard administrativo */
+.dash-container { max-width: 900px; margin: 2rem auto; background: #fff; border-radius: 2rem; box-shadow: 0 4px 24px rgba(80,120,200,0.10); padding: 2.5rem 2rem; }
+.dash-title { text-align: center; color: #2193b0; font-size: 2.2rem; font-weight: 700; margin-bottom: 2rem; }
+.dash-metrics { display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center; margin-bottom: 2.5rem; }
+.dash-metric { background: linear-gradient(90deg, #e0eafc 0%, #cfdef3 100%); border-radius: 1.5rem; padding: 1.5rem 2.5rem; min-width: 200px; text-align: center; box-shadow: 0 2px 8px rgba(80,120,200,0.10); }
+.dash-metric h3 { margin: 0 0 0.5rem 0; color: #357ab8; font-size: 1.3rem; }
+.dash-metric .value { font-size: 2.2rem; font-weight: 700; color: #2193b0; }
+.dash-section { margin-bottom: 2rem; }
+.dash-section h4 { color: #4a90e2; margin-bottom: 1rem; }
+ul, ol { border-radius: 1rem; background: #f4f8fb; padding: 1rem 1.5rem; }
+li { margin-bottom: 0.5rem; }

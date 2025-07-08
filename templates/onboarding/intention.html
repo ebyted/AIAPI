@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Onboarding - Intención{% endblock %}
+
+{% block content %}
+  <div class="onb-container">
+    <div class="onb-card">
+      <h2>¿Cuál es tu intención principal al usar Milo?</h2>
+      <form id="intention-form">
+        <select id="intention" name="intention" required style="border-radius: 1.5rem; padding: 0.7rem; font-size:1.1rem;">
+          <option value="">Selecciona una opción...</option>
+        </select>
+        <div id="intention-error" style="color:#e74c3c; min-height:1.5em; margin-bottom:1em;"></div>
+        <button type="submit" class="onb-btn">Continuar</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Opciones válidas desde el backend
+  fetch('/onboarding/options')
+    .then(res => res.json())
+    .then(data => {
+      const intenciones = data.intentions || [];
+      const select = document.getElementById('intention');
+      intenciones.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e;
+        opt.textContent = e;
+        select.appendChild(opt);
+      });
+    });
+  const form = document.getElementById('intention-form');
+  form.onsubmit = async function(e) {
+    e.preventDefault();
+    const intention = document.getElementById('intention').value;
+    if (!intention) {
+      document.getElementById('intention-error').textContent = 'Selecciona una intención.';
+      return;
+    }
+    const session_id = localStorage.getItem('onb_session_id');
+    if (!session_id) {
+      alert('Sesión de onboarding no encontrada. Vuelve a empezar.');
+      window.location.href = '/onboarding/welcome';
+      return;
+    }
+    const res = await fetch('/onboarding/intention', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id, intention })
+    });
+    if (res.ok) {
+      window.location.href = '/onboarding/personal';
+    } else {
+      document.getElementById('intention-error').textContent = 'Error guardando la intención. Intenta de nuevo.';
+    }
+  };
+</script>
+{% endblock %}

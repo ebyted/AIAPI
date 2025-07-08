@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Administrativo{% endblock %}
+
+{% block content %}
+  <div class="dash-container">
+    <div class="dash-title">Dashboard Administrativo</div>
+    <div class="dash-metrics">
+      <div class="dash-metric">
+        <h3>Total de usuarios</h3>
+        <div class="value" id="total-users">-</div>
+      </div>
+      <div class="dash-metric">
+        <h3>Sesiones de onboarding</h3>
+        <div class="value" id="total-onboarding">-</div>
+      </div>
+    </div>
+    <div class="dash-section">
+      <h4>Usuarios recientes</h4>
+      <ul id="recent-users"></ul>
+    </div>
+    <div class="dash-section">
+      <h4>Sesiones de onboarding recientes</h4>
+      <ul id="recent-onboarding"></ul>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadDashboard() {
+      // Solicita token de admin (puedes adaptar esto a tu flujo de login)
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        alert('Debes iniciar sesión como administrador.');
+        return;
+      }
+      const res = await fetch('/admin/dashboard', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        alert('No autorizado o error al cargar el dashboard.');
+        return;
+      }
+      const data = await res.json();
+      document.getElementById('total-users').textContent = data.total_users;
+      document.getElementById('total-onboarding').textContent = data.total_onboarding;
+      const usersList = document.getElementById('recent-users');
+      usersList.innerHTML = '';
+      data.recent_users.forEach(u => {
+        const li = document.createElement('li');
+        li.textContent = u;
+        usersList.appendChild(li);
+      });
+      const onboardingList = document.getElementById('recent-onboarding');
+      onboardingList.innerHTML = '';
+      data.recent_onboarding.forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = s;
+        onboardingList.appendChild(li);
+      });
+    }
+    loadDashboard();
+  </script>
+{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="/static/css/dashboard.css" />
+{% endblock %}

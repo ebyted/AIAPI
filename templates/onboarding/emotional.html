@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Onboarding - Estado Emocional{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/onboarding.css">
+</head>
+<body>
+  {% block content %}
+  <div class="onb-container">
+    <div class="onb-card">
+      <h2>¿Cómo te sientes hoy?</h2>
+      <form id="emotional-form">
+        <select id="emotional_state" name="emotional_state" required style="border-radius: 1.5rem; padding: 0.7rem; font-size:1.1rem;">
+          <option value="">Selecciona una opción...</option>
+        </select>
+        <div id="emotional-error" style="color:#e74c3c; min-height:1.5em; margin-bottom:1em;"></div>
+        <button type="submit" class="onb-btn">Continuar</button>
+      </form>
+    </div>
+  </div>
+  {% endblock %}
+
+  {% block scripts %}
+  <script>
+    // Opciones válidas desde el backend
+    fetch('/onboarding/options')
+      .then(res => res.json())
+      .then(data => {
+        const estados = data.emotional_states || [];
+        const select = document.getElementById('emotional_state');
+        estados.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e;
+          opt.textContent = e;
+          select.appendChild(opt);
+        });
+      });
+    const form = document.getElementById('emotional-form');
+    form.onsubmit = async function(e) {
+      e.preventDefault();
+      const estado = document.getElementById('emotional_state').value;
+      if (!estado) {
+        document.getElementById('emotional-error').textContent = 'Selecciona cómo te sientes.';
+        return;
+      }
+      const session_id = localStorage.getItem('onb_session_id');
+      if (!session_id) {
+        alert('Sesión de onboarding no encontrada. Vuelve a empezar.');
+        window.location.href = '/onboarding/welcome';
+        return;
+      }
+      const res = await fetch('/onboarding/emotional', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id, emotional_state: estado })
+      });
+      if (res.ok) {
+        window.location.href = '/onboarding/intention';
+      } else {
+        document.getElementById('emotional-error').textContent = 'Error guardando el estado. Intenta de nuevo.';
+      }
+    };
+  </script>
+  {% endblock %}
+</body>
+</html>

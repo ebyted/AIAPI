@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Onboarding - Datos Personales</title>
+  <link rel="stylesheet" href="/static/css/onboarding.css">
+</head>
+<body>
+  {% extends 'base.html' %}
+
+  {% block title %}Onboarding - Datos Personales{% endblock %}
+
+  {% block content %}
+    <div class="onb-container">
+      <div class="onb-card">
+        <h2>Datos personales</h2>
+        <form id="personal-form">
+          <input type="text" id="full_name" name="full_name" placeholder="Nombre completo" maxlength="60" required style="border-radius: 1.5rem;">
+          <input type="date" id="birth_date" name="birth_date" required style="border-radius: 1.5rem;">
+          <input type="text" id="birth_place" name="birth_place" placeholder="Lugar de nacimiento" maxlength="60" required style="border-radius: 1.5rem;">
+          <input type="time" id="birth_time" name="birth_time" style="border-radius: 1.5rem;">
+          <input type="email" id="email" name="email" placeholder="Correo electrónico" maxlength="60" required style="border-radius: 1.5rem;">
+          <div id="personal-error" style="color:#e74c3c; min-height:1.5em; margin-bottom:1em;"></div>
+          <button type="submit" class="onb-btn">Continuar</button>
+        </form>
+      </div>
+    </div>
+  {% endblock %}
+
+  {% block scripts %}
+  <script>
+    const form = document.getElementById('personal-form');
+    form.onsubmit = async function(e) {
+      e.preventDefault();
+      const full_name = document.getElementById('full_name').value.trim();
+      const birth_date = document.getElementById('birth_date').value;
+      const birth_place = document.getElementById('birth_place').value.trim();
+      const birth_time = document.getElementById('birth_time').value;
+      const email = document.getElementById('email').value.trim();
+      if (!full_name || !birth_date || !birth_place || !email) {
+        document.getElementById('personal-error').textContent = 'Completa todos los campos obligatorios.';
+        return;
+      }
+      const session_id = localStorage.getItem('onb_session_id');
+      if (!session_id) {
+        alert('Sesión de onboarding no encontrada. Vuelve a empezar.');
+        window.location.href = '/onboarding/welcome';
+        return;
+      }
+      const res = await fetch('/onboarding/personal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id, full_name, birth_date, birth_place, birth_time, email })
+      });
+      if (res.ok) {
+        window.location.href = '/onboarding/summary';
+      } else {
+        document.getElementById('personal-error').textContent = 'Error guardando los datos. Intenta de nuevo.';
+      }
+    };
+  </script>
+  {% endblock %}
+</body>
+</html>

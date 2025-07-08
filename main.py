@@ -1,6 +1,6 @@
 import os
 import logging
-from prompts import get_prompt_by_mode, PROMPTS
+from AIAPI.prompts import get_prompt_by_mode, PROMPTS
 
 from datetime import datetime, timedelta
 from typing import Optional, Generator, List, Dict, Any
@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from openai import OpenAI
-from fastapi import FastAPI, Depends, HTTPException, status, Request, APIRouter
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import FastAPI, Depends, HTTPException, status, Request, APIRouter, Security
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,11 +24,11 @@ from sqlalchemy.orm import Session
 from datetime import date, time
 import uuid
 
-import models
-import crud
-import crud_profile
-from database import SessionLocal, engine
-from models import AdminUser
+import AIAPI.models as models
+import AIAPI.crud as crud
+import AIAPI.crud_profile as crud_profile
+from AIAPI.database import SessionLocal, engine
+from AIAPI.models import AdminUser
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -54,6 +54,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+security = HTTPBearer()
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Milo API", version="1.0")
@@ -98,10 +99,47 @@ except Exception as e:
     logger.error(f"Error montando archivos estáticos: {e}")
 
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
 
-# Configuración de templates (asegúrate de que la ruta sea correcta)
-templates = Jinja2Templates(directory="templates")
+# Ajusta la ruta de templates y static para entorno actual
+TEMPLATES_PATH = os.path.join(os.path.dirname(__file__), 'templates')
+STATIC_PATH = os.path.join(os.path.dirname(__file__), 'static')
+
+if not os.path.exists(TEMPLATES_PATH):
+    # fallback a raíz del proyecto si no existe en el subdirectorio
+    TEMPLATES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+if not os.path.exists(STATIC_PATH):
+    STATIC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static'))
+
+app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_PATH)
+
+@app.get("/onboarding/welcome", include_in_schema=False)
+async def onboarding_welcome(request: Request):
+    return templates.TemplateResponse("onboarding/welcome.html", {"request": request})
+
+@app.get("/onboarding/temple", include_in_schema=False)
+async def onboarding_temple(request: Request):
+    return templates.TemplateResponse("onboarding/temple.html", {"request": request})
+
+@app.get("/onboarding/emotional", include_in_schema=False)
+async def onboarding_emotional(request: Request):
+    return templates.TemplateResponse("onboarding/emotional.html", {"request": request})
+
+@app.get("/onboarding/intention", include_in_schema=False)
+async def onboarding_intention(request: Request):
+    return templates.TemplateResponse("onboarding/intention.html", {"request": request})
+
+@app.get("/onboarding/personal", include_in_schema=False)
+async def onboarding_personal(request: Request):
+    return templates.TemplateResponse("onboarding/personal.html", {"request": request})
+
+@app.get("/onboarding/summary", include_in_schema=False)
+async def onboarding_summary(request: Request):
+    return templates.TemplateResponse("onboarding/summary.html", {"request": request})
+
+@app.get("/onboarding/welcome-message", include_in_schema=False)
+async def onboarding_welcome_message(request: Request):
+    return templates.TemplateResponse("onboarding/welcome-message.html", {"request": request})
 
 # Model classes
 class Token(BaseModel):
@@ -201,6 +239,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if not user:
         raise exc
     return user
+
+# Helper para verificar admin
+async def get_current_admin(token: HTTPAuthorizationCredentials = Security(security), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        username: Optional[str] = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="No autorizado")
+        user = crud.get_user(db, username)
+        if not user or not getattr(user, "is_admin", False):
+            raise HTTPException(status_code=403, detail="Solo administradores")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
 
 @app.get("/", include_in_schema=False)
 async def serve_index(request: Request):
@@ -672,9 +724,9 @@ async def get_user_onboarding_status(
         "temple_name": current_user.temple_name,
         "emotional_state": current_user.emotional_state,
         "intention": current_user.intention,
-        "birth_date": current_user.birth_date.isoformat() if current_user.birth_date else None,
+        "birth_date": current_user.birth_date,
         "birth_place": current_user.birth_place,
-        "birth_time": current_user.birth_time.isoformat() if current_user.birth_time else None
+        "birth_time": current_user.birth_time
     }
 
 @app.post("/meditation/music")
@@ -1005,6 +1057,24 @@ async def simulate_user_data(
     except Exception as e:
         logger.error(f"Error simulando datos: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.get("/admin/dashboard", tags=["admin"])
+async def admin_dashboard(db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+    # Estadísticas globales
+    total_users = db.query(models.User).count()
+    total_onboarding = db.query(models.UserOnboardingSession).count()
+    recent_users = db.query(models.User).order_by(models.User.created_at.desc()).limit(10).all()
+    recent_onboarding = db.query(models.UserOnboardingSession).order_by(models.UserOnboardingSession.created_at.desc()).limit(10).all()
+    return {
+        "total_users": total_users,
+        "total_onboarding": total_onboarding,
+        "recent_users": [u.username for u in recent_users],
+        "recent_onboarding": [s.session_id for s in recent_onboarding]
+    }
+
+@app.get("/admin/dashboard-view", include_in_schema=False)
+async def admin_dashboard_view(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 if __name__ == "__main__":
     import uvicorn

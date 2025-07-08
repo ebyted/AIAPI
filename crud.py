@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import models
+from AIAPI import models
 import uuid  # <-- Añadido
 import os    # <-- Añadido
 from openai import OpenAI # <-- Añadido
