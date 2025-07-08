@@ -98,12 +98,10 @@ except Exception as e:
     logger.error(f"Error montando archivos estáticos: {e}")
 
 from fastapi.templating import Jinja2Templates
+from fastapi import Request
 
-try:
-    templates = Jinja2Templates(directory="templates")
-except Exception as e:
-    logger.error(f"Error configurando templates: {e}")
-    templates = None
+# Configuración de templates (asegúrate de que la ruta sea correcta)
+templates = Jinja2Templates(directory="templates")
 
 # Model classes
 class Token(BaseModel):
@@ -205,12 +203,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 @app.get("/", include_in_schema=False)
-async def serve_index():
-    if templates:
-        template_path = os.path.join("templates", "index.html")
-        if os.path.exists(template_path):
-            return FileResponse(template_path)
-    return {"message": "BeCalm API", "status": "running", "docs": "/docs"}
+async def serve_index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/health", summary="Health Check")
 async def health():
